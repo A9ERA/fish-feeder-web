@@ -1,0 +1,139 @@
+.dashboard-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+
+  h4 {
+    margin-bottom: 32px;
+  }
+}
+
+.dashboard-content {
+  display: flex;
+  gap: 24px;
+
+  @media (max-width: 1000px) {
+    flex-direction: column;
+  }
+}
+
+.camera-section {
+  flex: 0 0 33%;
+  aspect-ratio: 1/1;
+  max-height: calc(100vh - 200px);
+
+  @media (max-width: 1000px) {
+    flex: 0 0 auto;
+    width: 100%;
+    order: -1;
+    aspect-ratio: auto;
+  }
+}
+
+.camera-preview {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 1000px) {
+    height: 300px;
+  }
+
+  @media (max-width: 768px) {
+    height: 300px;
+  }
+
+  .camera-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .camera-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  }
+}
+
+.sensor-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section-title {
+  margin-bottom: 16px;
+}
+
+.sensor-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sensor-item {
+  flex: 1;
+  min-width: 250px;
+
+  @media (max-width: 768px) {
+    min-width: 40%;
+  }
+}
+
+.sensor-card {
+  padding: 16px;
+  height: 100%;
+
+  .sensor-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .sensor-icon {
+      margin-right: 8px;
+    }
+  }
+
+  .sensor-value {
+    display: flex;
+    align-items: baseline;
+
+    .sensor-unit {
+      margin-left: 4px;
+    }
+  }
+}
+
+.status-card {
+  padding: 16px;
+
+  .status-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .status-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+// Additional responsive adjustments
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+
+  .sensor-grid {
+    gap: 12px;
+  }
+
+  .sensor-card, .status-card {
+    padding: 12px;
+  }
+} 
