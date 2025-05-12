@@ -2,4 +2,70 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  
+  .pwm-control-item {
+    padding: 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    height: 100%;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+  }
+  
+  // Enhance slider appearance
+  .MuiSlider-root {
+    height: 8px;
+    
+    .MuiSlider-thumb {
+      width: 20px;
+      height: 20px;
+      
+      &:hover {
+        box-shadow: 0 0 0 8px rgba(33, 150, 243, 0.16);
+      }
+    }
+    
+    .MuiSlider-track {
+      border-radius: 4px;
+      height: 8px;
+    }
+    
+    .MuiSlider-rail {
+      border-radius: 4px;
+      height: 8px;
+    }
+  }
+  
+  // Style actuator buttons
+  .actuator-button {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    
+    &:after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(-100%);
+    }
+    
+    &.operating:after {
+      animation: sweep 1.5s infinite;
+    }
+  }
+  
+  @keyframes sweep {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
 } 

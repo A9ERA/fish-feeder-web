@@ -126,7 +126,28 @@ const Dashboard = () => {
 
           {/* Power Section */}
           <Box>
-            <Typography variant="h6" className="section-title">Power</Typography>
+            <Typography variant="h6" className="section-title">Power solar</Typography>
+            <Box className="sensor-grid">
+              <Box className="sensor-item">
+                <SensorValue
+                  icon={<PowerIcon color="primary" />}
+                  label="Voltage"
+                  value={`${sensorData.solarVoltage}V`}
+                />
+              </Box>
+              <Box className="sensor-item">
+                <SensorValue
+                  icon={<PowerIcon color="primary" />}
+                  label="Current"
+                  value={`${sensorData.solarCurrent}A`}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Power System Section */}
+          <Box>
+            <Typography variant="h6" className="section-title">Power system</Typography>
             <Box className="sensor-grid">
               <Box className="sensor-item">
                 <SensorValue
@@ -140,20 +161,6 @@ const Dashboard = () => {
                   icon={<PowerIcon color="primary" />}
                   label="Current"
                   value={`${sensorData.systemCurrent}A`}
-                />
-              </Box>
-              <Box className="sensor-item">
-                <SensorValue
-                  icon={<PowerIcon color="primary" />}
-                  label="Power"
-                  value={`${sensorData.solarVoltage}V`}
-                />
-              </Box>
-              <Box className="sensor-item">
-                <SensorValue
-                  icon={<PowerIcon color="primary" />}
-                  label="Power"
-                  value={`${sensorData.solarCurrent}A`}
                 />
               </Box>
               <Box className="sensor-item">

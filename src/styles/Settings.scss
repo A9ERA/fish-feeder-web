@@ -2,4 +2,81 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  
+  .humidity-slider-section {
+    padding: 16px;
+    border-radius: 8px;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+  }
+  
+  // Enhanced slider appearance
+  .MuiSlider-root {
+    height: 8px;
+    
+    .MuiSlider-thumb {
+      width: 20px;
+      height: 20px;
+      
+      &:hover {
+        box-shadow: 0 0 0 8px rgba(33, 150, 243, 0.16);
+      }
+    }
+    
+    .MuiSlider-track {
+      border-radius: 4px;
+      height: 8px;
+    }
+    
+    .MuiSlider-rail {
+      border-radius: 4px;
+      height: 8px;
+    }
+  }
+  
+  // Firebase config box
+  .firebase-config {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    padding: 16px;
+    margin-top: 8px;
+    overflow-x: auto;
+    
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+  }
+  
+  // System status styling
+  .system-status-list {
+    .MuiListItem-root {
+      padding: 8px 0;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+    }
+    
+    .MuiListItemIcon-root {
+      min-width: 36px;
+    }
+  }
+  
+  // Status chip styling
+  .status-chip {
+    margin-top: 4px;
+    font-weight: 500;
+    
+    &.connected {
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+    
+    &.disconnected {
+      background-color: rgba(244, 67, 54, 0.1);
+    }
+  }
 } 
