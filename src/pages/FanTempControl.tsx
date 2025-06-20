@@ -69,11 +69,11 @@ const FanTempControl = () => {
           
           <div className="flex justify-between mb-4">
             <div>
-              <div className="text-xs">Current Temperature</div>
-              <div className="text-2xl font-bold text-gray-800">{currentTemperature.toFixed(1)}°C</div>
+              <div className="text-xs text-default-500">Current Temperature</div>
+              <div className="text-2xl font-bold text-foreground">{currentTemperature.toFixed(1)}°C</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Fan Activation Threshold</div>
+              <div className="text-xs text-default-500">Fan Activation Threshold</div>
               <div className="text-2xl font-bold text-blue-600">{temperatureThreshold}°C</div>
             </div>
           </div>
@@ -87,7 +87,7 @@ const FanTempControl = () => {
           </div>
           
           <div className="mt-6">
-            <div className="mb-2 text-sm font-medium text-gray-700">Adjust Fan Activation Threshold</div>
+            <div className="mb-2 text-sm font-medium text-foreground">Adjust Fan Activation Threshold</div>
             <Slider
               aria-label="Temperature Threshold"
               value={temperatureThreshold}
@@ -95,7 +95,7 @@ const FanTempControl = () => {
               step={1}
               minValue={20}
               maxValue={40}
-              className="w-full text-gray-800"
+              className="w-full text-default-500"
               color="primary"
               showTooltip
               marks={temperatureMarks}
@@ -121,8 +121,8 @@ const FanTempControl = () => {
             {/* Auto Mode Toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-gray-800">Auto Fan Mode</div>
-                <div className="text-xs text-gray-500">
+                <div className="font-medium text-foreground">Auto Fan Mode</div>
+                <div className="text-xs text-default-500">
                   {autoFanMode ? 
                     'Fan will automatically turn on when temperature exceeds threshold' : 
                     'Fan can be manually controlled'}
@@ -138,8 +138,8 @@ const FanTempControl = () => {
             {/* Manual Fan Control Toggle (disabled in auto mode) */}
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-gray-800">Manual Fan Control (Relay1)</div>
-                <div className="text-xs text-gray-500">
+                <div className="font-medium text-foreground">Manual Fan Control (Relay1)</div>
+                <div className="text-xs text-default-500">
                   {autoFanMode ? 
                     'Disabled in auto mode' : 
                     'Toggle the fan on/off manually'}
