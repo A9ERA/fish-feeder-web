@@ -18,6 +18,7 @@ import { database } from '../config/firebase';
 import { ref, set, get } from 'firebase/database';
 import { v4 as uuidv4 } from 'uuid';
 import { useApiEndpoint } from '../contexts/ApiEndpointContext';
+import { useCameraContext } from '../contexts/CameraContext';
 
 // Helper function to convert CalendarDate to JavaScript Date
 const toJSDate = (calendarDate: CalendarDate): Date => {
@@ -146,6 +147,7 @@ const loadSchedules = async () => {
 
 const FeedControl = () => {
   const { pi_server_endpoint } = useApiEndpoint();
+  const { isCameraEnabled, toggleCamera } = useCameraContext();
   const [foodAmount, setFoodAmount] = useState('100');
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
@@ -181,23 +183,76 @@ const FeedControl = () => {
     end: new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
   });
 
-  // Mock feed log data with actual Date objects
-  const allFeedLogs = [
-    { id: 1, time: '12 MAY 2025 - 17:41:30', amount: 50, duration: 15, date: new Date(2025, 4, 12, 17, 41, 30) },
-    { id: 2, time: '12 MAY 2025 - 15:46:30', amount: 100, duration: 25, date: new Date(2025, 4, 12, 15, 46, 30) },
-    { id: 3, time: '12 MAY 2025 - 12:46:30', amount: 75, duration: 20, date: new Date(2025, 4, 12, 12, 46, 30) },
-    { id: 4, time: '12 MAY 2025 - 05:46:30', amount: 150, duration: 35, date: new Date(2025, 4, 12, 5, 46, 30) },
-    { id: 5, time: '11 MAY 2025 - 17:46:30', amount: 200, duration: 45, date: new Date(2025, 4, 11, 17, 46, 30) },
-  ];
+  // Feed log data state
+  const [allFeedLogs, setAllFeedLogs] = useState<any[]>([]);
+  const [isLoadingFeedLogs, setIsLoadingFeedLogs] = useState(false);
 
-  const [filteredFeedLogs, setFilteredFeedLogs] = useState(allFeedLogs);
+  const [filteredFeedLogs, setFilteredFeedLogs] = useState<any[]>([]);
 
   // Table columns
   const columns = [
     { key: "time", label: "Time" },
     { key: "amount", label: "Amount (g)" },
-    { key: "duration", label: "Duration (s)" }
+    { key: "actuatorUp", label: "Act Up (s)" },
+    { key: "actuatorDown", label: "Act Down (s)" },
+    { key: "augerDuration", label: "Auger (s)" },
+    { key: "blowerDuration", label: "Blower (s)" }
   ];
+
+  // Function to load feed history from API
+  const loadFeedHistoryFromAPI = async () => {
+    setIsLoadingFeedLogs(true);
+    try {
+      // Get available dates first
+      const datesResponse = await fetch(`${pi_server_endpoint}/api/feed-history/available-dates`);
+      const datesData = await datesResponse.json();
+      
+      if (datesData.status === 'success' && datesData.dates.length > 0) {
+        // Load data for all available dates
+        const allLogs: any[] = [];
+        
+        for (const dateStr of datesData.dates) {
+          try {
+            const response = await fetch(`${pi_server_endpoint}/api/feed-history/${dateStr}`);
+            const data = await response.json();
+            
+            if (data.status === 'success' && data.data) {
+              // Transform API data to match our component format
+              const transformedLogs = data.data.map((log: any, index: number) => {
+                const timestamp = new Date(log.timestamp);
+                return {
+                  id: `${dateStr}-${index}`,
+                  time: formatDate(timestamp),
+                  amount: log.amount,
+                  actuatorUp: log.actuator_up,
+                  actuatorDown: log.actuator_down,
+                  augerDuration: log.auger_duration,
+                  blowerDuration: log.blower_duration,
+                  date: timestamp
+                };
+              });
+              
+              allLogs.push(...transformedLogs);
+            }
+          } catch (error) {
+            console.error(`Error loading feed history for ${dateStr}:`, error);
+          }
+        }
+        
+        // Sort all logs by date (newest first)
+        allLogs.sort((a, b) => b.date.getTime() - a.date.getTime());
+        setAllFeedLogs(allLogs);
+      } else {
+        // No data available, use empty array
+        setAllFeedLogs([]);
+      }
+    } catch (error) {
+      console.error('Error loading feed history:', error);
+      setAllFeedLogs([]);
+    } finally {
+      setIsLoadingFeedLogs(false);
+    }
+  };
 
   // Load presets and schedules from Firebase when component mounts
   useEffect(() => {
@@ -210,6 +265,9 @@ const FeedControl = () => {
         // Load schedules
         const loadedSchedules = await loadSchedules();
         setSchedules(loadedSchedules);
+        
+        // Load feed history from API
+        await loadFeedHistoryFromAPI();
       } catch (error) {
         console.error('Error loading initial data:', error);
         setFeedPresets(defaultFeedPresets);
@@ -218,12 +276,12 @@ const FeedControl = () => {
     };
     
     loadInitialData();
-  }, []);
+  }, [pi_server_endpoint]);
 
-  // Filter feed logs when date range changes
+  // Filter feed logs when date range changes or allFeedLogs updates
   useEffect(() => {
     if (!filterDateRange.start && !filterDateRange.end) {
-      setFilteredFeedLogs(allFeedLogs);
+      setFilteredFeedLogs(allFeedLogs.sort((a, b) => b.date.getTime() - a.date.getTime()));
       return;
     }
 
@@ -244,8 +302,9 @@ const FeedControl = () => {
       return true;
     });
 
-    setFilteredFeedLogs(filtered);
-  }, [filterDateRange]);
+    // Sort filtered results by date (newest first)
+    setFilteredFeedLogs(filtered.sort((a, b) => b.date.getTime() - a.date.getTime()));
+  }, [filterDateRange, allFeedLogs]);
 
   // Get current feed presets including custom option
   const getCurrentPresets = () => {
@@ -428,7 +487,10 @@ const FeedControl = () => {
       const result = await response.json();
       console.log('Feed started successfully:', result);
       
-      // Optional: Add success notification here
+      // Reload feed history after successful feed
+      setTimeout(() => {
+        loadFeedHistoryFromAPI();
+      }, 2000); // Wait 2 seconds for the feed operation to complete and be logged
       
     } catch (error) {
       console.error('Error starting feed:', error);
@@ -582,7 +644,11 @@ const FeedControl = () => {
         <div className="bg-content1 rounded-lg shadow-small p-5">
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Live Camera & System Status</h2>
-            <CameraPreview className="aspect-video" />
+            <CameraPreview 
+              className="aspect-video" 
+              isEnabled={isCameraEnabled} 
+              onToggle={toggleCamera}
+            />
             
             {/* Feed Status */}
             <div className="border border-default-200 rounded-lg p-4 space-y-3">
@@ -617,23 +683,47 @@ const FeedControl = () => {
                 Recent Feeds
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-default-600">17:41 Today</span>
-                  <span className="font-medium">50g</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-default-600">15:46 Today</span>
-                  <span className="font-medium">100g</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-default-600">12:46 Today</span>
-                  <span className="font-medium">75g</span>
-                </div>
+                {(() => {
+                  // Get today's feeds (last 3 feeds from today)
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const tomorrow = new Date(today);
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  
+                  const todayFeeds = allFeedLogs
+                    .filter(log => log.date >= today && log.date < tomorrow)
+                    .sort((a, b) => b.date.getTime() - a.date.getTime())
+                    .slice(0, 3);
+                  
+                  return todayFeeds.map(feed => (
+                    <div key={feed.id} className="flex items-center justify-between text-sm">
+                      <span className="text-default-600">
+                        {feed.date.getHours().toString().padStart(2, '0')}:
+                        {feed.date.getMinutes().toString().padStart(2, '0')} Today
+                      </span>
+                      <span className="font-medium">{feed.amount}g</span>
+                    </div>
+                  ));
+                })()}
               </div>
               <div className="pt-2 border-t border-default-200">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-default-600">Today Total:</span>
-                  <span className="font-medium text-primary">225g</span>
+                  <span className="font-medium text-primary">
+                    {(() => {
+                      // Calculate today's total
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const tomorrow = new Date(today);
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      
+                      const todayTotal = allFeedLogs
+                        .filter(log => log.date >= today && log.date < tomorrow)
+                        .reduce((total, feed) => total + feed.amount, 0);
+                      
+                      return `${todayTotal}g`;
+                    })()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -926,6 +1016,62 @@ const FeedControl = () => {
       </div>
 
 
+      {/* Feed Statistics */}
+      <div className="bg-content1 rounded-lg shadow-small p-5">
+        <h2 className="text-xl font-bold mb-4">Feed Statistics</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {(() => {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const monthAgo = new Date(today);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+
+            // Calculate statistics
+            const todayFeeds = allFeedLogs.filter(log => log.date >= today);
+            const yesterdayFeeds = allFeedLogs.filter(log => log.date >= yesterday && log.date < today);
+            const weekFeeds = allFeedLogs.filter(log => log.date >= weekAgo);
+            const monthFeeds = allFeedLogs.filter(log => log.date >= monthAgo);
+
+            const todayTotal = todayFeeds.reduce((sum, feed) => sum + feed.amount, 0);
+            const yesterdayTotal = yesterdayFeeds.reduce((sum, feed) => sum + feed.amount, 0);
+            const weekTotal = weekFeeds.reduce((sum, feed) => sum + feed.amount, 0);
+            const monthTotal = monthFeeds.reduce((sum, feed) => sum + feed.amount, 0);
+
+            const weekAverage = Math.round(weekTotal / 7);
+            const monthAverage = Math.round(monthTotal / 30);
+
+            return (
+              <>
+                <div className="text-center p-3 bg-primary/10 rounded-lg">
+                  <div className="text-2xl font-bold text-primary">{todayTotal}g</div>
+                  <div className="text-sm text-default-600">Today</div>
+                  <div className="text-xs text-default-500">{todayFeeds.length} feeds</div>
+                </div>
+                <div className="text-center p-3 bg-default-100 rounded-lg">
+                  <div className="text-2xl font-bold text-default-700">{yesterdayTotal}g</div>
+                  <div className="text-sm text-default-600">Yesterday</div>
+                  <div className="text-xs text-default-500">{yesterdayFeeds.length} feeds</div>
+                </div>
+                <div className="text-center p-3 bg-secondary/10 rounded-lg">
+                  <div className="text-2xl font-bold text-secondary">{weekAverage}g</div>
+                  <div className="text-sm text-default-600">7-day Avg</div>
+                  <div className="text-xs text-default-500">{weekFeeds.length} total feeds</div>
+                </div>
+                <div className="text-center p-3 bg-success/10 rounded-lg">
+                  <div className="text-2xl font-bold text-success">{monthAverage}g</div>
+                  <div className="text-sm text-default-600">30-day Avg</div>
+                  <div className="text-xs text-default-500">{monthFeeds.length} total feeds</div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* Feed Log Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -959,14 +1105,19 @@ const FeedControl = () => {
             {(column: { key: string; label: string }) => (
               <TableColumn
                 key={column.key}
-                align={column.key !== "time" ? "end" : "start"}
+                align={column.key === "time" ? "start" : "center"}
               >
                 {column.label}
               </TableColumn>
             )}
           </TableHeader>
-          <TableBody items={filteredFeedLogs} emptyContent="No feed logs found for the selected date range">
-            {(item: { id: number; time: string; amount: number; duration: number; date: Date }) => (
+          <TableBody 
+            items={filteredFeedLogs} 
+            emptyContent={isLoadingFeedLogs ? "Loading feed logs..." : "No feed logs found for the selected date range"}
+            isLoading={isLoadingFeedLogs}
+            loadingContent="Loading feed logs..."
+          >
+            {(item: { id: string; time: string; amount: number; actuatorUp: number; actuatorDown: number; augerDuration: number; blowerDuration: number; date: Date }) => (
               <TableRow key={item.id}>
                 {(columnKey: React.Key) => (
                   <TableCell>

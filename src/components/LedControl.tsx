@@ -1,13 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@heroui/button';
 import { Switch } from '@heroui/switch';
 import { FaLightbulb } from 'react-icons/fa';
 import { useApiEndpoint } from '../contexts/ApiEndpointContext';
+import { ref, set, onValue } from 'firebase/database';
+import { database } from '../config/firebase';
 
 const LedControl = () => {
   const { pi_server_endpoint } = useApiEndpoint();
   const [isLedOn, setIsLedOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load LED status from Firebase on component mount
+  useEffect(() => {
+    const systemStatusRef = ref(database, 'system_status/led_status');
+    
+    const unsubscribe = onValue(systemStatusRef, (snapshot) => {
+      const ledStatus = snapshot.val();
+      if (ledStatus !== null) {
+        setIsLedOn(ledStatus);
+        console.log('LED status loaded from Firebase:', ledStatus);
+      }
+    }, (error) => {
+      console.error('Error loading LED status from Firebase:', error);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Save LED status to Firebase
+  const saveLedStatusToFirebase = async (status: boolean) => {
+    try {
+      const systemStatusRef = ref(database, 'system_status/led_status');
+      await set(systemStatusRef, status);
+      console.log('LED status saved to Firebase successfully:', status);
+    } catch (error) {
+      console.error('Error saving LED status to Firebase:', error);
+    }
+  };
 
   const handleLedToggle = async (enabled: boolean) => {
     setIsLoading(true);
@@ -31,6 +62,9 @@ const LedControl = () => {
       const result = await response.json();
       console.log('LED control success:', result);
       setIsLedOn(enabled);
+      
+      // Save status to Firebase after successful API call
+      await saveLedStatusToFirebase(enabled);
       
     } catch (error) {
       console.error('Error controlling LED:', error);

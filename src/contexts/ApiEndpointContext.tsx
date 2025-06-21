@@ -10,7 +10,7 @@ type ApiEndpointContextType = {
 
 const ApiEndpointContext = createContext<ApiEndpointContextType | undefined>(undefined);
 
-const LOCAL_ENDPOINT = 'http://localhost:5000';
+const LOCAL_ENDPOINT = 'http://localhost:5050';
 const REMOTE_ENDPOINT = 'https://a9era.pagekite.me';
 const STORAGE_KEY = 'pi_server_local_mode';
 

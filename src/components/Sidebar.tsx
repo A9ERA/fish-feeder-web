@@ -101,11 +101,14 @@ const Sidebar = () => {
                 </NavLink>
               </li>
             ))}
+            {/* Add ThemeSwitch as part of navigation items */}
+            <li>
+              <div className="flex items-center justify-center p-2">
+                <ThemeSwitch />
+              </div>
+            </li>
           </ul>
         </nav>
-        <div className="absolute top-2 right-4">
-          <ThemeSwitch />
-        </div>
       </div>
     </>
   );
