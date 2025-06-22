@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Slider } from '@heroui/slider';
 import { Switch } from '@heroui/switch';
-import { FaTemperatureHigh, FaFan } from 'react-icons/fa';
+import { Button } from '@heroui/button';
+import { FaTemperatureHigh, FaFan, FaSave } from 'react-icons/fa';
 import { HiStatusOnline } from 'react-icons/hi';
+import { ref, onValue, set } from 'firebase/database';
+import { database } from '../config/firebase';
+import { SensorsData } from '../types';
+import { useApiEndpoint } from '../contexts/ApiEndpointContext';
 
 // Define the SliderStepMark type based on HeroUI docs
 type SliderStepMark = {
@@ -11,11 +16,17 @@ type SliderStepMark = {
 };
 
 const FanTempControl = () => {
+  const { pi_server_endpoint } = useApiEndpoint();
+  
   // States for fan control
-  const [currentTemperature, setCurrentTemperature] = useState(25); // Actual current temperature
+  const [currentTemperature, setCurrentTemperature] = useState<number | string>('N/A'); // Actual current temperature from Firebase
   const [temperatureThreshold, setTemperatureThreshold] = useState(30); // Fan activation threshold
+  const [originalThreshold, setOriginalThreshold] = useState(30); // To track changes
   const [autoFanMode, setAutoFanMode] = useState(true);
   const [fanStatus, setFanStatus] = useState(false);
+  const [sensorsData, setSensorsData] = useState<SensorsData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isManualFanLoading, setIsManualFanLoading] = useState(false);
 
   // Define slider marks
   const temperatureMarks: SliderStepMark[] = [
@@ -26,34 +37,138 @@ const FanTempControl = () => {
     { value: 40, label: '40°C' }
   ];
 
+  // Helper function to get sensor value
+  const getSensorValue = (sensors: SensorsData['sensors'], sensorName: keyof SensorsData['sensors'], valueType: string): number | string => {
+    if (!sensors[sensorName]) return 'N/A';
+    const value = sensors[sensorName].values.find(v => v.type === valueType);
+    return value ? value.value : 'N/A';
+  };
+
+  // Firebase listeners for sensors data
+  useEffect(() => {
+    const sensorsRef = ref(database, 'sensors_data');
+    const unsubscribe = onValue(sensorsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setSensorsData(data);
+        // Get system temperature from DHT22_SYSTEM
+        const systemTemp = getSensorValue(data.sensors, 'DHT22_SYSTEM', 'temperature');
+        setCurrentTemperature(systemTemp);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firebase listener for fan activation threshold
+  useEffect(() => {
+    const thresholdRef = ref(database, 'system_status/fan_activation_threshold');
+    const unsubscribe = onValue(thresholdRef, (snapshot) => {
+      const threshold = snapshot.val();
+      if (threshold !== null) {
+        setTemperatureThreshold(threshold);
+        setOriginalThreshold(threshold);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firebase listener for auto fan mode
+  useEffect(() => {
+    const autoModeRef = ref(database, 'system_status/is_auto_temp_control');
+    const unsubscribe = onValue(autoModeRef, (snapshot) => {
+      const autoMode = snapshot.val();
+      if (autoMode !== null) {
+        setAutoFanMode(autoMode);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firebase listener for fan status
+  useEffect(() => {
+    const fanStatusRef = ref(database, 'system_status/is_fan_on');
+    const unsubscribe = onValue(fanStatusRef, (snapshot) => {
+      const fanOn = snapshot.val();
+      if (fanOn !== null) {
+        setFanStatus(fanOn);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Effect to control fan based on temperature when in auto mode
   useEffect(() => {
-    if (autoFanMode) {
+    if (autoFanMode && typeof currentTemperature === 'number') {
       // If temperature is above threshold, turn on fan
-      setFanStatus(currentTemperature >= temperatureThreshold);
+      const shouldFanBeOn = currentTemperature >= temperatureThreshold;
+      if (fanStatus !== shouldFanBeOn) {
+        // Update Firebase when fan status should change in auto mode
+        set(ref(database, 'system_status/is_fan_on'), shouldFanBeOn)
+          .catch(error => console.error('Error updating fan status in Firebase:', error));
+      }
     }
-  }, [currentTemperature, temperatureThreshold, autoFanMode]);
+  }, [currentTemperature, temperatureThreshold, autoFanMode, fanStatus]);
 
   // Handle manual fan toggle
-  const handleManualFanToggle = () => {
-    if (!autoFanMode) {
-      setFanStatus(!fanStatus);
+  const handleManualFanToggle = async () => {
+    if (!autoFanMode && !isManualFanLoading) {
+      setIsManualFanLoading(true);
+      const newFanStatus = !fanStatus;
+      
+      try {
+        const response = await fetch(`${pi_server_endpoint}/api/control/relay`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            device: 'fan',
+            action: newFanStatus ? 'on' : 'off'
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (response.ok && result.status === 'success') {
+          // Update Firebase when API call is successful
+          await set(ref(database, 'system_status/is_fan_on'), newFanStatus);
+        } else {
+          console.error('Failed to control fan:', result.message || 'Unknown error');
+          // Could add toast notification here
+        }
+      } catch (error) {
+        console.error('Error controlling fan:', error);
+        // Could add toast notification here
+      } finally {
+        setIsManualFanLoading(false);
+      }
     }
   };
 
-  // Simulate temperature changes (in a real app, this would come from a sensor)
-  useEffect(() => {
-    // This is just a simulation - in reality you would get this from an API or sensor
-    const timer = setInterval(() => {
-      // Random small fluctuation in temperature to simulate sensor readings
-      setCurrentTemperature(prev => {
-        const fluctuation = (Math.random() - 0.5) * 0.5;
-        return Math.round((prev + fluctuation) * 10) / 10;
-      });
-    }, 3000);
-    
-    return () => clearInterval(timer);
-  }, []);
+  // Handle auto fan mode toggle
+  const handleAutoFanModeToggle = async () => {
+    try {
+      await set(ref(database, 'system_status/is_auto_temp_control'), !autoFanMode);
+    } catch (error) {
+      console.error('Error updating auto fan mode:', error);
+    }
+  };
+
+  // Handle save threshold
+  const handleSaveThreshold = async () => {
+    setIsSaving(true);
+    try {
+      await set(ref(database, 'system_status/fan_activation_threshold'), temperatureThreshold);
+      setOriginalThreshold(temperatureThreshold);
+    } catch (error) {
+      console.error('Error saving threshold:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Check if threshold has changed
+  const hasThresholdChanged = temperatureThreshold !== originalThreshold;
 
   return (
     <div className="p-6 space-y-8">
@@ -70,7 +185,9 @@ const FanTempControl = () => {
           <div className="flex justify-between mb-4">
             <div>
               <div className="text-xs text-default-500">Current Temperature</div>
-              <div className="text-2xl font-bold text-foreground">{currentTemperature.toFixed(1)}°C</div>
+              <div className="text-2xl font-bold text-foreground">
+                {typeof currentTemperature === 'number' ? currentTemperature.toFixed(1) : currentTemperature}°C
+              </div>
             </div>
             <div>
               <div className="text-xs text-default-500">Fan Activation Threshold</div>
@@ -80,7 +197,7 @@ const FanTempControl = () => {
           
           <div className="mb-3">
             <div className="text-sm">
-              {currentTemperature >= temperatureThreshold ? 
+              {typeof currentTemperature === 'number' && currentTemperature >= temperatureThreshold ? 
                 `Temperature above threshold - Fan ${autoFanMode ? 'activated' : 'activation recommended'}` : 
                 `Temperature below threshold - Fan ${autoFanMode ? 'deactivated' : 'not needed'}`}
             </div>
@@ -105,6 +222,19 @@ const FanTempControl = () => {
                 </div>
               }
             />
+            <div className="mt-12 flex justify-end">
+              <Button
+                color="primary"
+                variant="solid"
+                size="sm"
+                startContent={<FaSave />}
+                onPress={handleSaveThreshold}
+                isDisabled={!hasThresholdChanged}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -130,7 +260,7 @@ const FanTempControl = () => {
               </div>
               <Switch
                 isSelected={autoFanMode}
-                onChange={() => setAutoFanMode(!autoFanMode)}
+                onChange={handleAutoFanModeToggle}
                 color="primary"
               />
             </div>
@@ -142,14 +272,16 @@ const FanTempControl = () => {
                 <div className="text-xs text-default-500">
                   {autoFanMode ? 
                     'Disabled in auto mode' : 
-                    'Toggle the fan on/off manually'}
+                    isManualFanLoading ? 
+                      'Controlling fan...' : 
+                      'Toggle the fan on/off manually'}
                 </div>
               </div>
               <Switch
                 isSelected={fanStatus}
                 onChange={handleManualFanToggle}
                 color="primary"
-                isDisabled={autoFanMode}
+                isDisabled={autoFanMode || isManualFanLoading}
               />
             </div>
 

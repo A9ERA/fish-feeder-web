@@ -2,6 +2,7 @@ import LocalModeSwitcher from '../components/LocalModeSwitcher';
 import DurationSettings from '../components/DurationSettings';
 import LedControl from '../components/LedControl';
 import SensorControl from '../components/SensorControl';
+import WeightCalibration from '../components/WeightCalibration';
 import VersionInfo from '../components/VersionInfo';
 import { FaCog } from 'react-icons/fa';
 
@@ -32,6 +33,11 @@ const Settings = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Sensor Control</h2>
           <SensorControl />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Weight Calibration</h2>
+          <WeightCalibration />
         </div>
         
         <div>

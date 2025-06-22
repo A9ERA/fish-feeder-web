@@ -151,7 +151,7 @@ const FeedControl = () => {
   const [foodAmount, setFoodAmount] = useState('50'); // Initialize with small preset amount
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
-  // Device timing controls - initialized to 'small' preset values
+  // Device timing controls - will be initialized from selected preset
   const [actuatorUp, setActuatorUp] = useState('2');
   const [actuatorDown, setActuatorDown] = useState('1');
   const [augerDuration, setAugerDuration] = useState('10');
@@ -283,6 +283,20 @@ const FeedControl = () => {
     
     loadInitialData();
   }, [pi_server_endpoint]);
+
+  // Initialize timing controls with selected preset values when presets are loaded
+  useEffect(() => {
+    if (feedPresets.length > 0 && selectedFeedType !== 'custom') {
+      const selectedPreset = feedPresets.find((preset: any) => preset.id === selectedFeedType);
+      if (selectedPreset) {
+        setActuatorUp(selectedPreset.timing.actuatorUp);
+        setActuatorDown(selectedPreset.timing.actuatorDown);
+        setAugerDuration(selectedPreset.timing.augerDuration);
+        setBlowerDuration(selectedPreset.timing.blowerDuration);
+        setFoodAmount(selectedPreset.amount);
+      }
+    }
+  }, [feedPresets, selectedFeedType]);
 
   // Filter feed logs when date range changes or allFeedLogs updates
   useEffect(() => {
@@ -513,6 +527,33 @@ const FeedControl = () => {
     }
   };
 
+  const handleEmergencyStop = async () => {
+    try {
+      const response = await fetch(`${pi_server_endpoint}/api/feeder/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Emergency stop successful:', result);
+      
+      // Immediately set feeding state to false
+      setIsFeeding(false);
+      
+    } catch (error) {
+      console.error('Error sending emergency stop:', error);
+      // Even if the request fails, stop the feeding state
+      setIsFeeding(false);
+    }
+  };
+
 
   const handleDateRangeReset = () => {
     setFilterDateRange({
@@ -662,34 +703,47 @@ const FeedControl = () => {
                 </div>
               </div>
 
-              <Button
-                color="primary"
-                onClick={handleFeedNow}
-                className="w-full h-10 text-sm font-semibold"
-                startContent={<BsPlay className="text-lg" />}
-                isLoading={isFeeding}
-                isDisabled={(() => {
-                  let amount;
-                  if (selectedFeedType === 'custom') {
-                    amount = customAmount;
-                  } else {
-                    const currentPresets = getCurrentPresets();
-                    const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
-                    amount = selectedPreset ? selectedPreset.amount : '0';
-                  }
-                  return isFeeding || !amount || amount === '0' || parseFloat(amount) <= 0;
-                })()}
-              >
-                {isFeeding ? 'FEEDING...' : `FEED NOW (${(() => {
-                  if (selectedFeedType === 'custom') {
-                    return customAmount;
-                  } else {
-                    const currentPresets = getCurrentPresets();
-                    const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
-                    return selectedPreset ? selectedPreset.amount : '0';
-                  }
-                })()}g)`}
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  color="primary"
+                  onClick={handleFeedNow}
+                  className="w-full h-10 text-sm font-semibold"
+                  startContent={<BsPlay className="text-lg" />}
+                  isLoading={isFeeding}
+                  isDisabled={(() => {
+                    let amount;
+                    if (selectedFeedType === 'custom') {
+                      amount = customAmount;
+                    } else {
+                      const currentPresets = getCurrentPresets();
+                      const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
+                      amount = selectedPreset ? selectedPreset.amount : '0';
+                    }
+                    return isFeeding || !amount || amount === '0' || parseFloat(amount) <= 0;
+                  })()}
+                >
+                  {isFeeding ? 'FEEDING...' : `FEED NOW (${(() => {
+                    if (selectedFeedType === 'custom') {
+                      return customAmount;
+                    } else {
+                      const currentPresets = getCurrentPresets();
+                      const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
+                      return selectedPreset ? selectedPreset.amount : '0';
+                    }
+                  })()}g)`}
+                </Button>
+
+                {isFeeding && (
+                  <Button
+                    color="danger"
+                    onClick={handleEmergencyStop}
+                    className="w-full h-10 text-sm font-semibold"
+                    startContent={<BsX className="text-lg" />}
+                  >
+                    EMERGENCY STOP
+                  </Button>
+                )}
+              </div>
 
               {/* Device Timing Summary */}
               <div className="flex items-center gap-2 text-sm text-default-500 bg-default-100 rounded-md p-2">

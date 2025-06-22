@@ -4,12 +4,8 @@ import { HeroUIProvider } from "@heroui/system";
 import { useHref, useNavigate } from "react-router-dom";
 import { ApiEndpointProvider } from "./contexts/ApiEndpointContext";
 import { CameraProvider } from "./contexts/CameraContext";
-
-declare module "@react-types/shared" {
-  interface RouterConfig {
-    routerOptions: NavigateOptions;
-  }
-}
+import { PinAuthProvider } from "./contexts/PinAuthContext";
+import { SplashProvider } from "./contexts/SplashContext";
 
 export function Provider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -17,9 +13,13 @@ export function Provider({ children }: { children: React.ReactNode }) {
   return (
     <ApiEndpointProvider>
       <CameraProvider>
-        <HeroUIProvider navigate={navigate} useHref={useHref} locale="th-TH">
-          {children}
-        </HeroUIProvider>
+        <PinAuthProvider>
+          <SplashProvider>
+            <HeroUIProvider navigate={navigate} useHref={useHref} locale="th-TH">
+              {children}
+            </HeroUIProvider>
+          </SplashProvider>
+        </PinAuthProvider>
       </CameraProvider>
     </ApiEndpointProvider>
   );

@@ -418,10 +418,7 @@ const Dashboard = () => {
                         borderRadius: '8px',
                         color: '#F9FAFB'
                       }}
-                      formatter={(value, name) => [
-                        `${value}W`, 
-                        name === 'solarGeneration' ? 'Solar Generation' : 'Feeder Consumption'
-                      ]}
+                      formatter={(value, name) => [`${value}W`, name]}
                     />
                     <Legend />
                     <Line 

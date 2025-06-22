@@ -36,7 +36,7 @@ const Sidebar = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: <MdSpaceDashboard /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <MdSpaceDashboard /> },
     { path: '/feed-control', label: 'Feed Control', icon: <SiApachedolphinscheduler /> },
     { path: '/fan-temp-control', label: 'Temperature Control', icon: <FaTemperatureLow /> },
     { path: '/motor-pwm', label: 'Motor & PWM Settings', icon: <VscSettings /> },
