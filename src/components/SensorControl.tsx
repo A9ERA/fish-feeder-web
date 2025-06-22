@@ -12,7 +12,7 @@ const SensorControl = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastAction, setLastAction] = useState('');
   const [message, setMessage] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastStatusCheck, setLastStatusCheck] = useState<Date | null>(null);
   const [sensorStatus, setSensorStatus] = useState<{
     sensor_status?: string;
@@ -24,7 +24,7 @@ const SensorControl = () => {
   const sendSensorCommand = async (action: string, intervalValue?: number) => {
     setIsLoading(true);
     setMessage('');
-    
+
     try {
       const payload: any = { action };
       if (intervalValue !== undefined) {
@@ -40,17 +40,33 @@ const SensorControl = () => {
       });
 
       const result = await response.json();
-      
+
       if (response.ok && result.status === 'success') {
         setMessage(result.message);
         setLastAction(action);
-        
+
         // Handle different action types
-        if (action === 'start') {
-          setIsRunning(true);
-        } else if (action === 'stop') {
-          setIsRunning(false);
+        if (action === 'start' || action === 'stop') {
+          // Update sensor status information from start/stop response
+          if (result.sensor_status) {
+            setSensorStatus({
+              sensor_status: result.sensor_status,
+              is_running: result.is_running,
+              interval: result.interval,
+              raw_responses: result.raw_responses || []
+            });
+            setIsRunning(result.is_running === true);
+            
+            if (result.interval) {
+              setInterval(result.interval.toString());
+            }
+          }
         } else if (action === 'status') {
+          // Debug: Log the received result
+          console.log('API Response:', result);
+          console.log('sensor_status:', result.sensor_status);
+          console.log('is_running:', result.is_running);
+
           // Update sensor status information
           setSensorStatus({
             sensor_status: result.sensor_status,
@@ -58,10 +74,10 @@ const SensorControl = () => {
             interval: result.interval,
             raw_responses: result.raw_responses
           });
-          
-          // Update running state based on actual status
-          setIsRunning(result.is_running || false);
-          
+
+          // Update running state based on actual Arduino status
+          setIsRunning(result.is_running === true);
+
           // Update interval display if available
           if (result.interval) {
             setInterval(result.interval.toString());
@@ -100,17 +116,23 @@ const SensorControl = () => {
     setLastStatusCheck(new Date());
   };
 
+  // Get initial status when component mounts
+  useEffect(() => {
+    sendSensorCommand('status');
+    setLastStatusCheck(new Date());
+  }, []);
+
   // Auto-refresh status every 5 seconds when enabled
   useEffect(() => {
     let intervalId: number;
-    
+
     if (autoRefresh) {
       intervalId = window.setInterval(() => {
         sendSensorCommand('status');
         setLastStatusCheck(new Date());
       }, 5000);
     }
-    
+
     return () => {
       if (intervalId) {
         window.clearInterval(intervalId);
@@ -130,33 +152,33 @@ const SensorControl = () => {
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-default-600">Status:</span>
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-success' : 'bg-default-400'}`}></div>
-            <span className={`text-sm font-medium ${isRunning ? 'text-success' : 'text-default-500'}`}>
-              {sensorStatus.sensor_status || (isRunning ? 'Running' : 'Stopped')}
+            <div className={`w-3 h-3 rounded-full ${sensorStatus.sensor_status === 'ACTIVE' ? 'bg-success' : 'bg-default-400'
+              }`}></div>
+            <span className={`text-sm font-medium ${sensorStatus.sensor_status === 'ACTIVE' ? 'text-success' : 'text-default-500'
+              }`}>
+              {sensorStatus.sensor_status || 'Unknown'}
             </span>
           </div>
         </div>
-        
-        {/* Detailed Status Info */}
-        {sensorStatus.interval && (
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-default-500">Current Interval:</span>
-            <span className="text-xs font-medium text-default-700">
-              {sensorStatus.interval}ms
-            </span>
-          </div>
-        )}
-        
+
+
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-default-500">Current Interval:</span>
+          <span className="text-xs font-medium text-default-700">
+            {sensorStatus.interval}ms
+          </span>
+        </div>
+
+
         {message && (
-          <div className={`text-sm p-2 rounded ${
-            message.startsWith('Error') 
-              ? 'bg-danger-50 text-danger-600 border border-danger-200' 
+          <div className={`text-sm p-2 rounded ${message.startsWith('Error')
+              ? 'bg-danger-50 text-danger-600 border border-danger-200'
               : 'bg-success-50 text-success-600 border border-success-200'
-          }`}>
+            }`}>
             {message}
           </div>
         )}
-        
+
         {/* Raw Arduino Responses (for debugging) */}
         {sensorStatus.raw_responses && sensorStatus.raw_responses.length > 0 && (
           <details className="mt-2">
@@ -181,7 +203,7 @@ const SensorControl = () => {
           <div className="flex gap-3">
             <Button
               color="success"
-              variant={isRunning ? "solid" : "bordered"}
+              variant={sensorStatus.sensor_status === 'ACTIVE' ? "solid" : "bordered"}
               onClick={handleStartSensors}
               isLoading={isLoading && lastAction === 'start'}
               startContent={<BsPlay />}
@@ -189,10 +211,10 @@ const SensorControl = () => {
             >
               Start Sensors
             </Button>
-            
+
             <Button
               color="danger"
-              variant={!isRunning ? "solid" : "bordered"}
+              variant={sensorStatus.sensor_status === 'INACTIVE' ? "solid" : "bordered"}
               onClick={handleStopSensors}
               isLoading={isLoading && lastAction === 'stop'}
               startContent={<BsStop />}
@@ -206,7 +228,7 @@ const SensorControl = () => {
         {/* Interval Setting */}
         <div>
           <h4 className="text-sm font-medium text-default-700 mb-3">Update Interval</h4>
-          
+
           {/* Preset Intervals */}
           <div className="grid grid-cols-5 gap-2 mb-3">
             {[1000, 2000, 5000, 10000, 30000].map((presetInterval) => (
@@ -222,7 +244,7 @@ const SensorControl = () => {
               </Button>
             ))}
           </div>
-          
+
           <div className="flex gap-3">
             <Input
               type="number"
@@ -265,7 +287,7 @@ const SensorControl = () => {
               </Switch>
             </div>
           </div>
-          
+
           <Button
             variant="bordered"
             onClick={handleGetStatus}
@@ -275,7 +297,7 @@ const SensorControl = () => {
           >
             Get Sensor Status
           </Button>
-          
+
           {lastStatusCheck && (
             <p className="text-xs text-default-500 mt-2 text-center">
               Last checked: {lastStatusCheck.toLocaleTimeString()}

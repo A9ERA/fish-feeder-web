@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { Switch } from '@heroui/switch';
-import { BsTrash, BsPlay, BsGear, BsPencil, BsClock, BsChevronDown, BsChevronUp } from 'react-icons/bs';
+import { BsTrash, BsPlay, BsGear, BsPencil, BsClock, BsChevronDown, BsChevronUp, BsCameraVideo, BsX } from 'react-icons/bs';
 import {
   Table,
   TableHeader,
@@ -148,7 +148,7 @@ const loadSchedules = async () => {
 const FeedControl = () => {
   const { pi_server_endpoint } = useApiEndpoint();
   const { isCameraEnabled, toggleCamera } = useCameraContext();
-  const [foodAmount, setFoodAmount] = useState('100');
+  const [foodAmount, setFoodAmount] = useState('50'); // Initialize with small preset amount
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
   // Device timing controls - initialized to 'small' preset values
@@ -188,6 +188,10 @@ const FeedControl = () => {
   const [isLoadingFeedLogs, setIsLoadingFeedLogs] = useState(false);
 
   const [filteredFeedLogs, setFilteredFeedLogs] = useState<any[]>([]);
+  
+  // Video modal state
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [currentVideoFile, setCurrentVideoFile] = useState<string>('');
 
   // Table columns
   const columns = [
@@ -196,7 +200,8 @@ const FeedControl = () => {
     { key: "actuatorUp", label: "Act Up (s)" },
     { key: "actuatorDown", label: "Act Down (s)" },
     { key: "augerDuration", label: "Auger (s)" },
-    { key: "blowerDuration", label: "Blower (s)" }
+    { key: "blowerDuration", label: "Blower (s)" },
+    { key: "actions", label: "Actions" }
   ];
 
   // Function to load feed history from API
@@ -228,6 +233,7 @@ const FeedControl = () => {
                   actuatorDown: log.actuator_down,
                   augerDuration: log.auger_duration,
                   blowerDuration: log.blower_duration,
+                  video_file: log.video_file || '',
                   date: timestamp
                 };
               });
@@ -457,7 +463,14 @@ const FeedControl = () => {
   };
 
   const handleFeedNow = async () => {
-    const amount = selectedFeedType === 'custom' ? customAmount : foodAmount;
+    let amount;
+    if (selectedFeedType === 'custom') {
+      amount = customAmount;
+    } else {
+      const currentPresets = getCurrentPresets();
+      const selectedPreset = currentPresets.find((type: any) => type.id === selectedFeedType);
+      amount = selectedPreset ? selectedPreset.amount : foodAmount;
+    }
     
     if (!amount || parseFloat(amount) <= 0) {
       return;
@@ -508,10 +521,41 @@ const FeedControl = () => {
     });
   };
 
+  const handleViewVideo = (videoFile: string) => {
+    if (videoFile && videoFile.trim() !== '') {
+      setCurrentVideoFile(videoFile);
+      setIsVideoModalOpen(true);
+    }
+  };
+
+  const handleCloseVideoModal = () => {
+    setIsVideoModalOpen(false);
+    setCurrentVideoFile('');
+  };
+
   // Render cell content, handling date objects
   const renderCellContent = (item: any, columnKey: React.Key) => {
     if (columnKey === 'date') {
       return formatDate(item.date);
+    }
+    if (columnKey === 'actions') {
+      return (
+        <div className="flex items-center gap-2">
+          {item.video_file && item.video_file.trim() !== '' ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              color="primary"
+              onClick={() => handleViewVideo(item.video_file)}
+              startContent={<BsCameraVideo />}
+            >
+              View Video
+            </Button>
+          ) : (
+            <span className="text-default-400 text-sm">No video</span>
+          )}
+        </div>
+      );
     }
     return item[columnKey as keyof typeof item];
   };
@@ -625,11 +669,26 @@ const FeedControl = () => {
                 startContent={<BsPlay className="text-lg" />}
                 isLoading={isFeeding}
                 isDisabled={(() => {
-                  const amount = selectedFeedType === 'custom' ? customAmount : (getCurrentPresets().find(type => type.id === selectedFeedType)?.amount || '0');
+                  let amount;
+                  if (selectedFeedType === 'custom') {
+                    amount = customAmount;
+                  } else {
+                    const currentPresets = getCurrentPresets();
+                    const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
+                    amount = selectedPreset ? selectedPreset.amount : '0';
+                  }
                   return isFeeding || !amount || amount === '0' || parseFloat(amount) <= 0;
                 })()}
               >
-                {isFeeding ? 'FEEDING...' : `FEED NOW (${selectedFeedType === 'custom' ? customAmount : (getCurrentPresets().find(type => type.id === selectedFeedType)?.amount || '0')}g)`}
+                {isFeeding ? 'FEEDING...' : `FEED NOW (${(() => {
+                  if (selectedFeedType === 'custom') {
+                    return customAmount;
+                  } else {
+                    const currentPresets = getCurrentPresets();
+                    const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
+                    return selectedPreset ? selectedPreset.amount : '0';
+                  }
+                })()}g)`}
               </Button>
 
               {/* Device Timing Summary */}
@@ -1105,7 +1164,7 @@ const FeedControl = () => {
             {(column: { key: string; label: string }) => (
               <TableColumn
                 key={column.key}
-                align={column.key === "time" ? "start" : "center"}
+                align={column.key === "time" ? "start" : column.key === "actions" ? "center" : "center"}
               >
                 {column.label}
               </TableColumn>
@@ -1129,6 +1188,83 @@ const FeedControl = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Video Modal */}
+      {isVideoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" onClick={handleCloseVideoModal}>
+          <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] m-4" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Feed Video</h3>
+              <button
+                onClick={handleCloseVideoModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <BsX className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-4">
+              {currentVideoFile && (
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <video
+                    key={currentVideoFile}
+                    controls
+                    className="w-full h-full object-contain"
+                    poster="/placeholder-video.png"
+                  >
+                    <source 
+                      src={`${pi_server_endpoint}/api/feed-video/${currentVideoFile}`} 
+                      type="video/mp4" 
+                    />
+                    <p className="text-white p-4">
+                      Your browser does not support the video tag.
+                      <br />
+                      <a 
+                        href={`${pi_server_endpoint}/api/feed-video/${currentVideoFile}`}
+                        className="text-blue-400 underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download video file
+                      </a>
+                    </p>
+                  </video>
+                </div>
+              )}
+              
+              {/* Video Info */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>File:</strong> {currentVideoFile}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  This video was recorded during the feeding process.
+                </p>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <Button
+                variant="ghost"
+                onClick={handleCloseVideoModal}
+              >
+                Close
+              </Button>
+              <Button
+                color="primary"
+                onClick={() => {
+                  window.open(`${pi_server_endpoint}/api/feed-video/${currentVideoFile}`, '_blank');
+                }}
+              >
+                Download
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
