@@ -43,25 +43,25 @@ const defaultFeedPresets = [
     id: 'small',
     label: 'small (50g)',
     amount: '50',
-    timing: { actuatorUp: '2', actuatorDown: '1', augerDuration: '10', blowerDuration: '5' }
+    timing: { augerDuration: '10', blowerDuration: '5' }
   },
   {
     id: 'medium',
     label: 'medium (100g)',
     amount: '100',
-    timing: { actuatorUp: '3', actuatorDown: '2', augerDuration: '15', blowerDuration: '10' }
+    timing: { augerDuration: '15', blowerDuration: '10' }
   },
   {
     id: 'large',
     label: 'large (200g)',
     amount: '200',
-    timing: { actuatorUp: '4', actuatorDown: '2', augerDuration: '20', blowerDuration: '15' }
+    timing: { augerDuration: '20', blowerDuration: '15' }
   },
   {
     id: 'xl',
     label: 'xl (1.0kg)',
     amount: '1000',
-    timing: { actuatorUp: '5', actuatorDown: '3', augerDuration: '30', blowerDuration: '20' }
+    timing: { augerDuration: '30', blowerDuration: '20' }
   }
 ];
 
@@ -151,9 +151,7 @@ const FeedControl = () => {
   const [foodAmount, setFoodAmount] = useState('50'); // Initialize with small preset amount
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
-  // Device timing controls - will be initialized from selected preset
-  const [actuatorUp, setActuatorUp] = useState('2');
-  const [actuatorDown, setActuatorDown] = useState('1');
+  // Device timing controls
   const [augerDuration, setAugerDuration] = useState('10');
   const [blowerDuration, setBlowerDuration] = useState('5');
   const [isFeeding, setIsFeeding] = useState(false);
@@ -166,7 +164,7 @@ const FeedControl = () => {
     id: '',
     label: '',
     amount: '',
-    timing: { actuatorUp: '', actuatorDown: '', augerDuration: '', blowerDuration: '' }
+    timing: { augerDuration: '', blowerDuration: '' }
   });
 
   // Automatic feeding schedules
@@ -193,17 +191,6 @@ const FeedControl = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>('');
 
-  // Table columns
-  const columns = [
-    { key: "time", label: "Time" },
-    { key: "amount", label: "Amount (g)" },
-    { key: "actuatorUp", label: "Act Up (s)" },
-    { key: "actuatorDown", label: "Act Down (s)" },
-    { key: "augerDuration", label: "Auger (s)" },
-    { key: "blowerDuration", label: "Blower (s)" },
-    { key: "actions", label: "Actions" }
-  ];
-
   // Function to load feed history from API
   const loadFeedHistoryFromAPI = async () => {
     setIsLoadingFeedLogs(true);
@@ -229,8 +216,6 @@ const FeedControl = () => {
                   id: `${dateStr}-${index}`,
                   time: formatDate(timestamp),
                   amount: log.amount,
-                  actuatorUp: log.actuator_up,
-                  actuatorDown: log.actuator_down,
                   augerDuration: log.auger_duration,
                   blowerDuration: log.blower_duration,
                   video_file: log.video_file || '',
@@ -259,6 +244,15 @@ const FeedControl = () => {
       setIsLoadingFeedLogs(false);
     }
   };
+
+  // Table columns (removed actuator columns)
+  const columns = [
+    { key: "time", label: "Time" },
+    { key: "amount", label: "Amount (g)" },
+    { key: "augerDuration", label: "Auger (s)" },
+    { key: "blowerDuration", label: "Blower (s)" },
+    { key: "actions", label: "Actions" }
+  ];
 
   // Load presets and schedules from Firebase when component mounts
   useEffect(() => {
@@ -289,8 +283,6 @@ const FeedControl = () => {
     if (feedPresets.length > 0 && selectedFeedType !== 'custom') {
       const selectedPreset = feedPresets.find((preset: any) => preset.id === selectedFeedType);
       if (selectedPreset) {
-        setActuatorUp(selectedPreset.timing.actuatorUp);
-        setActuatorDown(selectedPreset.timing.actuatorDown);
         setAugerDuration(selectedPreset.timing.augerDuration);
         setBlowerDuration(selectedPreset.timing.blowerDuration);
         setFoodAmount(selectedPreset.amount);
@@ -334,14 +326,14 @@ const FeedControl = () => {
         id: 'custom',
         label: 'Custom',
         amount: customAmount,
-        timing: { actuatorUp: actuatorUp, actuatorDown: actuatorDown, augerDuration: augerDuration, blowerDuration: blowerDuration }
+        timing: { augerDuration: augerDuration, blowerDuration: blowerDuration }
       }
     ];
   };
 
   // Preset management functions
   const handleAddPreset = async () => {
-    if (presetForm.label && presetForm.amount && presetForm.timing.actuatorUp && presetForm.timing.actuatorDown && presetForm.timing.augerDuration && presetForm.timing.blowerDuration) {
+    if (presetForm.label && presetForm.amount && presetForm.timing.augerDuration && presetForm.timing.blowerDuration) {
       const newId = uuidv4();
       const newPreset = {
         ...presetForm,
@@ -365,7 +357,7 @@ const FeedControl = () => {
   };
 
   const handleUpdatePreset = async () => {
-    if (editingPreset && presetForm.label && presetForm.amount && presetForm.timing.actuatorUp) {
+    if (editingPreset && presetForm.label && presetForm.amount && presetForm.timing.augerDuration) {
       const updatedPresets = feedPresets.map((p: any) =>
         p.id === editingPreset.id ? { ...presetForm, id: editingPreset.id } : p
       );
@@ -391,7 +383,7 @@ const FeedControl = () => {
       id: '',
       label: '',
       amount: '',
-      timing: { actuatorUp: '', actuatorDown: '', augerDuration: '', blowerDuration: '' }
+      timing: { augerDuration: '', blowerDuration: '' }
     });
   };
 
@@ -459,8 +451,6 @@ const FeedControl = () => {
     if (selectedType && feedType !== 'custom') {
       setFoodAmount(selectedType.amount);
       // Update timing values for preset
-      setActuatorUp(selectedType.timing.actuatorUp);
-      setActuatorDown(selectedType.timing.actuatorDown);
       setAugerDuration(selectedType.timing.augerDuration);
       setBlowerDuration(selectedType.timing.blowerDuration);
     } else if (feedType === 'custom') {
@@ -500,8 +490,6 @@ const FeedControl = () => {
         },
         body: JSON.stringify({
           feedSize: parseFloat(amount),
-          actuatorUp: parseFloat(actuatorUp),
-          actuatorDown: parseFloat(actuatorDown),
           augerDuration: parseFloat(augerDuration),
           blowerDuration: parseFloat(blowerDuration)
         }),
@@ -644,7 +632,6 @@ const FeedControl = () => {
                 </div>
               )}
 
-              {/* Device Timing Controls */}
               <div className="border-2 border-warning rounded-lg p-4 space-y-4">
                 <div className="flex items-center gap-2">
                   <BsGear className="text-warning text-lg" />
@@ -652,30 +639,6 @@ const FeedControl = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Actuator Up (s)</label>
-                    <Input
-                      type="number"
-                      value={actuatorUp}
-                      onChange={(e) => setActuatorUp(e.target.value)}
-                      min="0"
-                      step="0.1"
-                      className="w-full"
-                      size="sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Actuator Down (s)</label>
-                    <Input
-                      type="number"
-                      value={actuatorDown}
-                      onChange={(e) => setActuatorDown(e.target.value)}
-                      min="0"
-                      step="0.1"
-                      className="w-full"
-                      size="sm"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Auger Duration (s)</label>
                     <Input
@@ -745,10 +708,9 @@ const FeedControl = () => {
                 )}
               </div>
 
-              {/* Device Timing Summary */}
               <div className="flex items-center gap-2 text-sm text-default-500 bg-default-100 rounded-md p-2">
                 <BsGear className="text-sm" />
-                <span>actuator {actuatorUp}s↑ / {actuatorDown}s↓, auger {augerDuration}s, blower {blowerDuration}s</span>
+                <span>actuator 5s↑ / 10s↓ (fixed), auger {augerDuration}s, blower {blowerDuration}s</span>
               </div>
             </div>
           </div>
@@ -763,7 +725,6 @@ const FeedControl = () => {
               onToggle={toggleCamera}
             />
             
-            {/* Feed Status */}
             <div className="border border-default-200 rounded-lg p-4 space-y-3">
               <h3 className="text-lg font-medium flex items-center gap-2">
                 <BsGear className="text-primary" />
@@ -772,7 +733,7 @@ const FeedControl = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-default-600">Actuator:</span>
-                  <span className="text-sm font-medium text-default-400">Stopped</span>
+                  <span className="text-sm font-medium text-blue-600">5s↑/10s↓ (fixed)</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-default-600">Auger:</span>
@@ -789,7 +750,6 @@ const FeedControl = () => {
               </div>
             </div>
 
-            {/* Recent Feed History */}
             <div className="border border-default-200 rounded-lg p-4 space-y-3">
               <h3 className="text-lg font-medium flex items-center gap-2">
                 <BsClock className="text-primary" />
@@ -797,7 +757,6 @@ const FeedControl = () => {
               </h3>
               <div className="space-y-2">
                 {(() => {
-                  // Get today's feeds (last 3 feeds from today)
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   const tomorrow = new Date(today);
@@ -987,7 +946,6 @@ const FeedControl = () => {
               <h3 className="text-lg font-medium">
                 {editingPreset ? 'Edit Preset' : 'Add New Preset'}
               </h3>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Preset Name</label>
@@ -1012,34 +970,6 @@ const FeedControl = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Actuator Up (s)</label>
-                  <Input
-                    type="number"
-                    value={presetForm.timing.actuatorUp}
-                    onChange={(e) => setPresetForm({
-                      ...presetForm,
-                      timing: { ...presetForm.timing, actuatorUp: e.target.value }
-                    })}
-                    min="0"
-                    step="0.1"
-                    size="sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Actuator Down (s)</label>
-                  <Input
-                    type="number"
-                    value={presetForm.timing.actuatorDown}
-                    onChange={(e) => setPresetForm({
-                      ...presetForm,
-                      timing: { ...presetForm.timing, actuatorDown: e.target.value }
-                    })}
-                    min="0"
-                    step="0.1"
-                    size="sm"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Auger Duration (s)</label>
                   <Input
@@ -1101,7 +1031,7 @@ const FeedControl = () => {
                   <div>
                     <div className="font-medium">{preset.label}</div>
                     <div className="text-sm text-default-500">
-                      {preset.amount}g | Act: {preset.timing.actuatorUp}s↑/{preset.timing.actuatorDown}s↓ | Auger: {preset.timing.augerDuration}s | Blower: {preset.timing.blowerDuration}s
+                      {preset.amount}g | Auger: {preset.timing.augerDuration}s | Blower: {preset.timing.blowerDuration}s | Actuator: 5s↑/10s↓ (fixed)
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -1230,7 +1160,7 @@ const FeedControl = () => {
             isLoading={isLoadingFeedLogs}
             loadingContent="Loading feed logs..."
           >
-            {(item: { id: string; time: string; amount: number; actuatorUp: number; actuatorDown: number; augerDuration: number; blowerDuration: number; date: Date }) => (
+            {(item: { id: string; time: string; amount: number; augerDuration: number; blowerDuration: number; date: Date }) => (
               <TableRow key={item.id}>
                 {(columnKey: React.Key) => (
                   <TableCell>
