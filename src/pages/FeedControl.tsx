@@ -43,25 +43,25 @@ const defaultFeedPresets = [
     id: 'small',
     label: 'small (50g)',
     amount: '50',
-    timing: { augerDuration: '10', blowerDuration: '5' }
+    timing: { blowerDuration: '5' }
   },
   {
     id: 'medium',
     label: 'medium (100g)',
     amount: '100',
-    timing: { augerDuration: '15', blowerDuration: '10' }
+    timing: { blowerDuration: '10' }
   },
   {
     id: 'large',
     label: 'large (200g)',
     amount: '200',
-    timing: { augerDuration: '20', blowerDuration: '15' }
+    timing: { blowerDuration: '15' }
   },
   {
     id: 'xl',
     label: 'xl (1.0kg)',
     amount: '1000',
-    timing: { augerDuration: '30', blowerDuration: '20' }
+    timing: { blowerDuration: '20' }
   }
 ];
 
@@ -152,7 +152,6 @@ const FeedControl = () => {
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
   // Device timing controls
-  const [augerDuration, setAugerDuration] = useState('10');
   const [blowerDuration, setBlowerDuration] = useState('5');
   const [isFeeding, setIsFeeding] = useState(false);
 
@@ -164,7 +163,7 @@ const FeedControl = () => {
     id: '',
     label: '',
     amount: '',
-    timing: { augerDuration: '', blowerDuration: '' }
+    timing: { blowerDuration: '' }
   });
 
   // Automatic feeding schedules
@@ -216,7 +215,6 @@ const FeedControl = () => {
                   id: `${dateStr}-${index}`,
                   time: formatDate(timestamp),
                   amount: log.amount,
-                  augerDuration: log.auger_duration,
                   blowerDuration: log.blower_duration,
                   video_file: log.video_file || '',
                   date: timestamp
@@ -245,11 +243,10 @@ const FeedControl = () => {
     }
   };
 
-  // Table columns (removed actuator columns)
+  // Table columns
   const columns = [
     { key: "time", label: "Time" },
     { key: "amount", label: "Amount (g)" },
-    { key: "augerDuration", label: "Auger (s)" },
     { key: "blowerDuration", label: "Blower (s)" },
     { key: "actions", label: "Actions" }
   ];
@@ -283,7 +280,6 @@ const FeedControl = () => {
     if (feedPresets.length > 0 && selectedFeedType !== 'custom') {
       const selectedPreset = feedPresets.find((preset: any) => preset.id === selectedFeedType);
       if (selectedPreset) {
-        setAugerDuration(selectedPreset.timing.augerDuration);
         setBlowerDuration(selectedPreset.timing.blowerDuration);
         setFoodAmount(selectedPreset.amount);
       }
@@ -326,14 +322,14 @@ const FeedControl = () => {
         id: 'custom',
         label: 'Custom',
         amount: customAmount,
-        timing: { augerDuration: augerDuration, blowerDuration: blowerDuration }
+        timing: { blowerDuration: blowerDuration }
       }
     ];
   };
 
   // Preset management functions
   const handleAddPreset = async () => {
-    if (presetForm.label && presetForm.amount && presetForm.timing.augerDuration && presetForm.timing.blowerDuration) {
+    if (presetForm.label && presetForm.amount && presetForm.timing.blowerDuration) {
       const newId = uuidv4();
       const newPreset = {
         ...presetForm,
@@ -352,12 +348,12 @@ const FeedControl = () => {
       id: preset.id,
       label: preset.label,
       amount: preset.amount,
-      timing: { ...preset.timing }
+      timing: { blowerDuration: preset.timing.blowerDuration }
     });
   };
 
   const handleUpdatePreset = async () => {
-    if (editingPreset && presetForm.label && presetForm.amount && presetForm.timing.augerDuration) {
+    if (editingPreset && presetForm.label && presetForm.amount && presetForm.timing.blowerDuration) {
       const updatedPresets = feedPresets.map((p: any) =>
         p.id === editingPreset.id ? { ...presetForm, id: editingPreset.id } : p
       );
@@ -383,7 +379,7 @@ const FeedControl = () => {
       id: '',
       label: '',
       amount: '',
-      timing: { augerDuration: '', blowerDuration: '' }
+      timing: { blowerDuration: '' }
     });
   };
 
@@ -451,7 +447,6 @@ const FeedControl = () => {
     if (selectedType && feedType !== 'custom') {
       setFoodAmount(selectedType.amount);
       // Update timing values for preset
-      setAugerDuration(selectedType.timing.augerDuration);
       setBlowerDuration(selectedType.timing.blowerDuration);
     } else if (feedType === 'custom') {
       setFoodAmount(customAmount);
@@ -490,7 +485,6 @@ const FeedControl = () => {
         },
         body: JSON.stringify({
           feedSize: parseFloat(amount),
-          augerDuration: parseFloat(augerDuration),
           blowerDuration: parseFloat(blowerDuration)
         }),
       });
@@ -638,32 +632,20 @@ const FeedControl = () => {
                   <h4 className="text-base font-semibold text-warning">Device Timing Controls</h4>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Auger Duration (s)</label>
-                    <Input
-                      type="number"
-                      value={augerDuration}
-                      onChange={(e) => setAugerDuration(e.target.value)}
-                      min="0"
-                      step="0.1"
-                      className="w-full"
-                      size="sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Blower Duration (s)</label>
-                    <Input
-                      type="number"
-                      value={blowerDuration}
-                      onChange={(e) => setBlowerDuration(e.target.value)}
-                      min="0"
-                      step="0.1"
-                      className="w-full"
-                      size="sm"
-                    />
-                  </div>
+                              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Blower Duration (s)</label>
+                  <Input
+                    type="number"
+                    value={blowerDuration}
+                    onChange={(e) => setBlowerDuration(e.target.value)}
+                    min="0"
+                    step="0.1"
+                    className="w-full"
+                    size="sm"
+                  />
                 </div>
+              </div>
               </div>
 
               <div className="space-y-2">
@@ -710,7 +692,7 @@ const FeedControl = () => {
 
               <div className="flex items-center gap-2 text-sm text-default-500 bg-default-100 rounded-md p-2">
                 <BsGear className="text-sm" />
-                <span>actuator 5s↑ / 10s↓ (fixed), auger {augerDuration}s, blower {blowerDuration}s</span>
+                <span>solenoid valve 5s open / 10s close (fixed), blower {blowerDuration}s</span>
               </div>
             </div>
           </div>
@@ -732,12 +714,8 @@ const FeedControl = () => {
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-default-600">Actuator:</span>
-                  <span className="text-sm font-medium text-blue-600">5s↑/10s↓ (fixed)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-default-600">Auger:</span>
-                  <span className="text-sm font-medium text-default-400">Ready</span>
+                  <span className="text-sm text-default-600">Solenoid Valve:</span>
+                  <span className="text-sm font-medium text-blue-600">5s open/10s close (fixed)</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-default-600">Blower:</span>
@@ -969,21 +947,7 @@ const FeedControl = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Auger Duration (s)</label>
-                  <Input
-                    type="number"
-                    value={presetForm.timing.augerDuration}
-                    onChange={(e) => setPresetForm({
-                      ...presetForm,
-                      timing: { ...presetForm.timing, augerDuration: e.target.value }
-                    })}
-                    min="0"
-                    step="0.1"
-                    size="sm"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Blower Duration (s)</label>
                   <Input
@@ -1031,7 +995,7 @@ const FeedControl = () => {
                   <div>
                     <div className="font-medium">{preset.label}</div>
                     <div className="text-sm text-default-500">
-                      {preset.amount}g | Auger: {preset.timing.augerDuration}s | Blower: {preset.timing.blowerDuration}s | Actuator: 5s↑/10s↓ (fixed)
+                      {preset.amount}g | Blower: {preset.timing.blowerDuration}s | Solenoid Valve: 5s open/10s close (fixed)
                     </div>
                   </div>
                   <div className="flex gap-2">
