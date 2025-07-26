@@ -78,7 +78,7 @@ const Dashboard = () => {
 
   // Helper functions to get sensor values
   const getSensorValue = (sensorName: keyof SensorsData['sensors'], valueType: string): number | string => {
-    if (!sensorsData?.sensors[sensorName]) return 'N/A';
+    if (!sensorsData?.sensors || !sensorsData.sensors[sensorName]) return 'N/A';
     const value = sensorsData.sensors[sensorName].values.find(v => v.type === valueType);
     return value ? value.value : 'N/A';
   };
@@ -109,7 +109,18 @@ const Dashboard = () => {
     setIsLoadingPowerFlow(true);
     try {
       const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-      const response = await fetch(`${pi_server_endpoint}/api/charts/power-flow/${dateStr}`);
+      const response = await fetch(`${pi_server_endpoint}/api/charts/power-flow/${dateStr}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       
       if (result.status === 'success') {
@@ -131,7 +142,18 @@ const Dashboard = () => {
     setIsLoadingBattery(true);
     try {
       const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-      const response = await fetch(`${pi_server_endpoint}/api/charts/battery/${dateStr}`);
+      const response = await fetch(`${pi_server_endpoint}/api/charts/battery/${dateStr}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       
       if (result.status === 'success') {

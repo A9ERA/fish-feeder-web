@@ -17,10 +17,11 @@ const STORAGE_KEY = 'pi_server_local_mode';
 // Function to get initial endpoint from localStorage
 const getInitialEndpoint = (): string => {
   if (typeof window !== 'undefined') {
-    const isLocalMode = localStorage.getItem(STORAGE_KEY) === 'true';
-    return isLocalMode ? LOCAL_ENDPOINT : REMOTE_ENDPOINT;
+    const isLocalMode = localStorage.getItem(STORAGE_KEY);
+    // Default to local mode to avoid CORS issues
+    return isLocalMode === 'false' ? REMOTE_ENDPOINT : LOCAL_ENDPOINT;
   }
-  return REMOTE_ENDPOINT; // Default to remote
+  return LOCAL_ENDPOINT; // Default to local
 };
 
 export const ApiEndpointProvider = ({ children }: { children: ReactNode }) => {
