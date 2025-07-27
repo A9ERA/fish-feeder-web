@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Slider } from '@heroui/slider';
 import { Button } from '@heroui/button';
-import { FaSlidersH, FaArrowUp, FaArrowDown, FaPlay, FaStop, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaSlidersH, FaPlay, FaStop } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { RiBlazeFill } from 'react-icons/ri';
 import { useApiEndpoint } from '../contexts/ApiEndpointContext';
@@ -17,14 +17,12 @@ const MotorPWM = () => {
   const { pi_server_endpoint } = useApiEndpoint();
 
   // PWM control states
-  const [augerPWM, setAugerPWM] = useState(100);
   const [blowerPWM, setBlowerPWM] = useState(1);
 
-  // Actuator control states
-  const [actuatorMoving, setActuatorMoving] = useState<'up' | 'down' | null>(null);
+  // Solenoid control states
+  const [solenoidStatus, setSolenoidStatus] = useState<'open' | 'close' | 'stopped'>('stopped');
 
   // Manual control states
-  const [augerStatus, setAugerStatus] = useState<'forward' | 'backward' | 'stopped'>('stopped');
   const [blowerStatus, setBlowerStatus] = useState<'running' | 'stopped'>('stopped');
 
   // Refs for button press handling
@@ -48,13 +46,7 @@ const MotorPWM = () => {
     return Math.round(230 + (percentage - 1) * (255 - 230) / (100 - 1));
   };
 
-  // Function to map PWM percentage to auger API value
-  const mapPWMToAugerValue = (percentage: number): number => {
-    if (percentage === 0) return 0;
-    if (percentage === 1) return 230;
-    // For 1-100%, map to 230-255
-    return Math.round(230 + (percentage - 1) * (255 - 230) / (100 - 1));
-  };
+
 
   // API call function for blower speed control
   const callBlowerSpeedAPI = async (percentage: number) => {
@@ -79,33 +71,12 @@ const MotorPWM = () => {
     }
   };
 
-  // API call function for auger speed control
-  const callAugerSpeedAPI = async (percentage: number) => {
-    const apiValue = mapPWMToAugerValue(percentage);
 
+
+  // API call function for solenoid control
+  const callSolenoidAPI = async (action: 'open' | 'close' | 'stop') => {
     try {
-      const response = await fetch(`${pi_server_endpoint}/api/control/auger`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: "setspeed", value: apiValue }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      console.log(`Auger speed API call successful: ${percentage}% (value: ${apiValue})`);
-    } catch (error) {
-      console.error(`Error calling auger speed API for ${percentage}%:`, error);
-    }
-  };
-
-  // API call function for actuator control
-  const callActuatorAPI = async (action: 'up' | 'down' | 'stop') => {
-    try {
-      const response = await fetch(`${pi_server_endpoint}/api/control/actuator`, {
+      const response = await fetch(`${pi_server_endpoint}/api/control/solenoid`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,39 +88,20 @@ const MotorPWM = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      console.log(`Actuator API call successful: ${action}`);
-    } catch (error) {
-      console.error(`Error calling actuator API for action "${action}":`, error);
-    }
-  };
-
-  // API call function for manual auger control
-  const callAugerManualAPI = async (action: 'forward' | 'backward' | 'stop') => {
-    try {
-      const response = await fetch(`${pi_server_endpoint}/api/control/auger`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      console.log(`Auger manual control API call successful: ${action}`);
+      console.log(`Solenoid API call successful: ${action}`);
       
       // Update status based on action
       if (action === 'stop') {
-        setAugerStatus('stopped');
+        setSolenoidStatus('stopped');
       } else {
-        setAugerStatus(action);
+        setSolenoidStatus(action);
       }
     } catch (error) {
-      console.error(`Error calling auger manual control API for action "${action}":`, error);
+      console.error(`Error calling solenoid API for action "${action}":`, error);
     }
   };
+
+
 
   // API call function for manual blower control
   const callBlowerManualAPI = async (action: 'start' | 'stop') => {
@@ -175,23 +127,7 @@ const MotorPWM = () => {
     }
   };
 
-  // Handle actuator button press
-  const handleActuatorButtonDown = async (direction: 'up' | 'down') => {
-    setActuatorMoving(direction);
 
-    // Make API call to start moving the actuator
-    await callActuatorAPI(direction);
-    console.log(`Actuator moving ${direction}`);
-  };
-
-  // Handle actuator button release
-  const handleActuatorButtonUp = async () => {
-    setActuatorMoving(null);
-
-    // Make API call to stop the actuator
-    await callActuatorAPI('stop');
-    console.log('Actuator stopped');
-  };
 
   return (
     <div className="p-6 space-y-8">
@@ -206,35 +142,6 @@ const MotorPWM = () => {
           </div>
 
           <div className="space-y-8">
-            {/* Auger Motor PWM Control */}
-            <div className="space-y-2">
-              <div className="flex items-center mb-2">
-                <HiCog className="text-gray-700 mr-2 text-lg" />
-                <span className="text-foreground font-medium">PWM1 → Auger Motor</span>
-              </div>
-
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-default-500 text-sm">Current Setting</div>
-                <div className="text-lg font-bold text-blue-600">{augerPWM}%</div>
-              </div>
-
-              <Slider
-                aria-label="Auger Motor PWM"
-                value={augerPWM}
-                onChange={(value: number | number[]) => setAugerPWM(Number(value))}
-                onChangeEnd={(value: number | number[]) => {
-                  callAugerSpeedAPI(Number(value));
-                }}
-                step={1}
-                minValue={0}
-                maxValue={100}
-                className="w-full text-default-500"
-                color="primary"
-                showTooltip={true}
-                marks={pwmMarks}
-              />
-            </div>
-
             {/* Blower Fan PWM Control */}
             <div className="space-y-2 pt-4 mb-4">
               <div className="flex items-center mb-2">
@@ -280,55 +187,6 @@ const MotorPWM = () => {
           </div>
 
           <div className="space-y-10">
-            {/* Auger Manual Control */}
-            <div className="space-y-4">
-              <div className="flex items-center mb-3">
-                <HiCog className="text-gray-700 mr-2 text-lg" />
-                <span className="text-foreground font-medium">Auger Control</span>
-              </div>
-
-              <div className="text-center mb-3">
-                <div className="text-sm font-medium text-default-800">Current Status</div>
-                <div className={`text-md mt-1 font-bold ${
-                  augerStatus === 'forward' ? 'text-blue-600' : 
-                  augerStatus === 'backward' ? 'text-orange-600' : 
-                  'text-default-400'
-                }`}>
-                  {augerStatus.toUpperCase()}
-                </div>
-              </div>
-
-              <div className="flex justify-center gap-2">
-                <Button
-                  color="primary"
-                  variant={augerStatus === 'forward' ? 'solid' : 'bordered'}
-                  onClick={() => callAugerManualAPI('forward')}
-                  className="flex-1"
-                >
-                  <FaArrowRight className="mr-1" />
-                  Forward
-                </Button>
-                <Button
-                  color="warning"
-                  variant={augerStatus === 'backward' ? 'solid' : 'bordered'}
-                  onClick={() => callAugerManualAPI('backward')}
-                  className="flex-1"
-                >
-                  <FaArrowLeft className="mr-1" />
-                  Backward
-                </Button>
-                <Button
-                  color="danger"
-                  variant={augerStatus === 'stopped' ? 'solid' : 'bordered'}
-                  onClick={() => callAugerManualAPI('stop')}
-                  className="flex-1"
-                >
-                  <FaStop className="mr-1" />
-                  Stop
-                </Button>
-              </div>
-            </div>
-
             {/* Blower Manual Control */}
             <div className="space-y-4">
               <div className="flex items-center mb-3">
@@ -367,50 +225,51 @@ const MotorPWM = () => {
               </div>
             </div>
 
-            {/* Actuator Manual Control */}
+            {/* Solenoid Manual Control */}
             <div className="space-y-4">
               <div className="flex items-center mb-3">
-                <HiCog className="text-gray-700 mr-2 text-lg animate-spin animate-[spin_3s_linear_infinite]" />
-                <span className="text-foreground font-medium">Actuator Control</span>
+                <HiCog className="text-gray-700 mr-2 text-lg" />
+                <span className="text-foreground font-medium">Solenoid Control</span>
               </div>
 
               <div className="text-center mb-3">
                 <div className="text-sm font-medium text-default-800">Current Status</div>
                 <div className={`text-md mt-1 font-bold ${
-                  actuatorMoving ? 'text-green-600' : 'text-default-400'
+                  solenoidStatus === 'open' ? 'text-blue-600' : 
+                  solenoidStatus === 'close' ? 'text-orange-600' : 
+                  'text-default-400'
                 }`}>
-                  {actuatorMoving ? `Moving ${actuatorMoving.toUpperCase()}` : 'STOPPED'}
+                  {solenoidStatus.toUpperCase()}
                 </div>
               </div>
 
-              <div className="text-xs text-default-500 mb-3 text-center">
-                Press and hold buttons to move. Release to stop.
-              </div>
-
-              <div className="flex justify-center gap-6">
+              <div className="flex justify-center gap-2">
                 <Button
                   color="primary"
-                  variant={actuatorMoving === 'up' ? 'solid' : 'bordered'}
-                  className="h-48 w-48 rounded-full flex flex-col items-center justify-center"
-                  onMouseDown={() => handleActuatorButtonDown('up')}
-                  onMouseUp={handleActuatorButtonUp}
-                  onTouchStart={() => handleActuatorButtonDown('up')}
-                  onTouchEnd={handleActuatorButtonUp}
+                  variant={solenoidStatus === 'open' ? 'solid' : 'bordered'}
+                  onClick={() => callSolenoidAPI('open')}
+                  className="flex-1"
                 >
-                  <FaArrowUp className="text-xl mb-1" />
-                  <span className="text-sm">UP</span>
+                  <FaPlay className="mr-1" />
+                  Open
                 </Button>
                 <Button
-                  color="primary"
-                  variant={actuatorMoving === 'down' ? 'solid' : 'bordered'}
-                  className="h-48 w-48 rounded-full flex flex-col items-center justify-center"
-                  onMouseDown={() => handleActuatorButtonDown('down')}
-                  onMouseUp={handleActuatorButtonUp}
-                  onTouchStart={() => handleActuatorButtonDown('down')}
-                  onTouchEnd={handleActuatorButtonUp}
+                  color="warning"
+                  variant={solenoidStatus === 'close' ? 'solid' : 'bordered'}
+                  onClick={() => callSolenoidAPI('close')}
+                  className="flex-1"
                 >
-                  <FaArrowDown className="text-xl mb-1" />
-                  <span className="text-sm">DOWN</span>
+                  <FaStop className="mr-1" />
+                  Close
+                </Button>
+                <Button
+                  color="danger"
+                  variant={solenoidStatus === 'stopped' ? 'solid' : 'bordered'}
+                  onClick={() => callSolenoidAPI('stop')}
+                  className="flex-1"
+                >
+                  <FaStop className="mr-1" />
+                  Stop
                 </Button>
               </div>
             </div>
