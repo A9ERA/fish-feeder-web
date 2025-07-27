@@ -20,7 +20,7 @@ const MotorPWM = () => {
   const [blowerPWM, setBlowerPWM] = useState(1);
 
   // Solenoid control states
-  const [solenoidStatus, setSolenoidStatus] = useState<'open' | 'close' | 'stopped'>('stopped');
+  const [solenoidStatus, setSolenoidStatus] = useState<'open' | 'close'>('close');
 
   // Manual control states
   const [blowerStatus, setBlowerStatus] = useState<'running' | 'stopped'>('stopped');
@@ -74,7 +74,7 @@ const MotorPWM = () => {
 
 
   // API call function for solenoid control
-  const callSolenoidAPI = async (action: 'open' | 'close' | 'stop') => {
+  const callSolenoidAPI = async (action: 'open' | 'close') => {
     try {
       const response = await fetch(`${pi_server_endpoint}/api/control/solenoid`, {
         method: 'POST',
@@ -91,11 +91,7 @@ const MotorPWM = () => {
       console.log(`Solenoid API call successful: ${action}`);
       
       // Update status based on action
-      if (action === 'stop') {
-        setSolenoidStatus('stopped');
-      } else {
-        setSolenoidStatus(action);
-      }
+      setSolenoidStatus(action);
     } catch (error) {
       console.error(`Error calling solenoid API for action "${action}":`, error);
     }
@@ -261,15 +257,6 @@ const MotorPWM = () => {
                 >
                   <FaStop className="mr-1" />
                   Close
-                </Button>
-                <Button
-                  color="danger"
-                  variant={solenoidStatus === 'stopped' ? 'solid' : 'bordered'}
-                  onClick={() => callSolenoidAPI('stop')}
-                  className="flex-1"
-                >
-                  <FaStop className="mr-1" />
-                  Stop
                 </Button>
               </div>
             </div>
