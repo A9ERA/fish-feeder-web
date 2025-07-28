@@ -7,7 +7,7 @@ import { usePinAuth } from '../contexts/PinAuthContext';
 
 const Layout = () => {
   const location = useLocation();
-  const { isPageAuthenticated, authenticatePage } = usePinAuth();
+  const { isPageAuthenticated, authenticate } = usePinAuth();
   const [showPinModal, setShowPinModal] = useState(false);
   const [currentPageName, setCurrentPageName] = useState('');
 
@@ -31,7 +31,7 @@ const Layout = () => {
       return;
     }
 
-    // Check if page is already authenticated
+    // Check if user is globally authenticated
     if (!isPageAuthenticated(currentPath)) {
       setCurrentPageName(pageName);
       setShowPinModal(true);
@@ -41,8 +41,7 @@ const Layout = () => {
   }, [location.pathname, isPageAuthenticated]);
 
   const handlePinVerified = () => {
-    const currentPath = location.pathname;
-    authenticatePage(currentPath);
+    authenticate();
     setShowPinModal(false);
   };
 

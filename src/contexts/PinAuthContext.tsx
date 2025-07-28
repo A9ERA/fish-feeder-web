@@ -1,33 +1,38 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 type PinAuthContextType = {
-  authenticatedPages: Set<string>;
+  isAuthenticated: boolean;
   isPageAuthenticated: (pagePath: string) => boolean;
-  authenticatePage: (pagePath: string) => void;
+  authenticate: () => void;
   clearAuthentication: () => void;
 };
 
 const PinAuthContext = createContext<PinAuthContextType | undefined>(undefined);
 
 export const PinAuthProvider = ({ children }: { children: ReactNode }) => {
-  const [authenticatedPages, setAuthenticatedPages] = useState<Set<string>>(new Set());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const isPageAuthenticated = (pagePath: string): boolean => {
-    return authenticatedPages.has(pagePath);
+    // Dashboard doesn't require authentication
+    if (pagePath === '/dashboard') {
+      return true;
+    }
+    // All other pages require global authentication
+    return isAuthenticated;
   };
 
-  const authenticatePage = (pagePath: string): void => {
-    setAuthenticatedPages(prev => new Set(prev).add(pagePath));
+  const authenticate = (): void => {
+    setIsAuthenticated(true);
   };
 
   const clearAuthentication = (): void => {
-    setAuthenticatedPages(new Set());
+    setIsAuthenticated(false);
   };
 
   const value: PinAuthContextType = {
-    authenticatedPages,
+    isAuthenticated,
     isPageAuthenticated,
-    authenticatePage,
+    authenticate,
     clearAuthentication,
   };
 
