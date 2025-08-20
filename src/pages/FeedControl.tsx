@@ -692,7 +692,7 @@ const FeedControl = () => {
 
               <div className="flex items-center gap-2 text-sm text-default-500 bg-default-100 rounded-md p-2">
                 <BsGear className="text-sm" />
-                <span>solenoid valve: weight-based open / 12s close (fixed), blower {blowerDuration}s</span>
+                <span>feeder motor: weight-based open / 12s close (fixed), blower {blowerDuration}s</span>
               </div>
             </div>
           </div>
@@ -714,7 +714,7 @@ const FeedControl = () => {
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-default-600">Solenoid Valve:</span>
+                  <span className="text-sm text-default-600">Feeder Motor:</span>
                   <span className="text-sm font-medium text-blue-600">weight-based open/12s close (fixed)</span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -995,7 +995,7 @@ const FeedControl = () => {
                   <div>
                     <div className="font-medium">{preset.label}</div>
                     <div className="text-sm text-default-500">
-                      {preset.amount}g | Blower: {preset.timing.blowerDuration}s | Solenoid Valve: weight-based open/12s close (fixed)
+                      {preset.amount}g | Blower: {preset.timing.blowerDuration}s | Feeder Motor: weight-based open/12s close (fixed)
                     </div>
                   </div>
                   <div className="flex gap-2">

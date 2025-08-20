@@ -19,8 +19,8 @@ const MotorPWM = () => {
   // PWM control states
   const [blowerPWM, setBlowerPWM] = useState(1);
 
-  // Solenoid control states
-  const [solenoidStatus, setSolenoidStatus] = useState<'open' | 'close'>('close');
+  // Feeder motor control states
+  const [feederMotorStatus, setFeederMotorStatus] = useState<'open' | 'close'>('close');
 
   // Manual control states
   const [blowerStatus, setBlowerStatus] = useState<'running' | 'stopped'>('stopped');
@@ -73,10 +73,10 @@ const MotorPWM = () => {
 
 
 
-  // API call function for solenoid control
-  const callSolenoidAPI = async (action: 'open' | 'close') => {
+  // API call function for feeder motor control
+  const callFeederMotorAPI = async (action: 'open' | 'close') => {
     try {
-      const response = await fetch(`${pi_server_endpoint}/api/control/solenoid`, {
+      const response = await fetch(`${pi_server_endpoint}/api/control/feedermotor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,12 +88,12 @@ const MotorPWM = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      console.log(`Solenoid API call successful: ${action}`);
+      console.log(`Feeder motor API call successful: ${action}`);
       
       // Update status based on action
-      setSolenoidStatus(action);
+      setFeederMotorStatus(action);
     } catch (error) {
-      console.error(`Error calling solenoid API for action "${action}":`, error);
+      console.error(`Error calling feeder motor API for action "${action}":`, error);
     }
   };
 
@@ -221,29 +221,29 @@ const MotorPWM = () => {
               </div>
             </div>
 
-            {/* Solenoid Manual Control */}
+            {/* Feeder Motor Manual Control */}
             <div className="space-y-4">
               <div className="flex items-center mb-3">
                 <HiCog className="text-gray-700 mr-2 text-lg" />
-                <span className="text-foreground font-medium">Solenoid Control</span>
+                <span className="text-foreground font-medium">Feeder Motor Control</span>
               </div>
 
               <div className="text-center mb-3">
                 <div className="text-sm font-medium text-default-800">Current Status</div>
                 <div className={`text-md mt-1 font-bold ${
-                  solenoidStatus === 'open' ? 'text-blue-600' : 
-                  solenoidStatus === 'close' ? 'text-orange-600' : 
+                  feederMotorStatus === 'open' ? 'text-blue-600' : 
+                  feederMotorStatus === 'close' ? 'text-orange-600' : 
                   'text-default-400'
                 }`}>
-                  {solenoidStatus.toUpperCase()}
+                  {feederMotorStatus.toUpperCase()}
                 </div>
               </div>
 
               <div className="flex justify-center gap-2">
                 <Button
                   color="primary"
-                  variant={solenoidStatus === 'open' ? 'solid' : 'bordered'}
-                  onClick={() => callSolenoidAPI('open')}
+                  variant={feederMotorStatus === 'open' ? 'solid' : 'bordered'}
+                  onClick={() => callFeederMotorAPI('open')}
                   className="flex-1"
                 >
                   <FaPlay className="mr-1" />
@@ -251,8 +251,8 @@ const MotorPWM = () => {
                 </Button>
                 <Button
                   color="warning"
-                  variant={solenoidStatus === 'close' ? 'solid' : 'bordered'}
-                  onClick={() => callSolenoidAPI('close')}
+                  variant={feederMotorStatus === 'close' ? 'solid' : 'bordered'}
+                  onClick={() => callFeederMotorAPI('close')}
                   className="flex-1"
                 >
                   <FaStop className="mr-1" />
