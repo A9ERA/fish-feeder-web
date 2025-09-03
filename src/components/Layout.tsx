@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import { Outlet } from 'react-router-dom';
 import PinModal from './PinModal';
 import { usePinAuth } from '../contexts/PinAuthContext';
+import AlertModal from './AlertModal';
 
 const Layout = () => {
   const location = useLocation();
@@ -58,6 +59,9 @@ const Layout = () => {
         onPinVerified={handlePinVerified}
         pageName={currentPageName}
       />
+
+      {/* Global Alerts Modal */}
+      <AlertModal />
     </div>
   );
 };

@@ -15,10 +15,11 @@ import { DateRangePicker } from '@heroui/date-picker';
 import { CalendarDate } from '@internationalized/date';
 import CameraPreview from '../components/CameraPreview';
 import { database } from '../config/firebase';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, onValue } from 'firebase/database';
 import { v4 as uuidv4 } from 'uuid';
 import { useApiEndpoint } from '../contexts/ApiEndpointContext';
 import { useCameraContext } from '../contexts/CameraContext';
+import { SensorsData } from '../types';
 
 // Helper function to convert CalendarDate to JavaScript Date
 const toJSDate = (calendarDate: CalendarDate): Date => {
@@ -148,6 +149,7 @@ const loadSchedules = async () => {
 const FeedControl = () => {
   const { pi_server_endpoint } = useApiEndpoint();
   const { isCameraEnabled, toggleCamera } = useCameraContext();
+  const [sensorsData, setSensorsData] = useState<SensorsData | null>(null);
   const [foodAmount, setFoodAmount] = useState('50'); // Initialize with small preset amount
   const [selectedFeedType, setSelectedFeedType] = useState('small');
   const [customAmount, setCustomAmount] = useState('50');
@@ -171,7 +173,7 @@ const FeedControl = () => {
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
   const [scheduleForm, setScheduleForm] = useState({
     time: '',
-    presetId: 'small',
+    presetId: '',
     enabled: true
   });
 
@@ -189,6 +191,34 @@ const FeedControl = () => {
   // Video modal state
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>('');
+
+  // Realtime sensors data (for HX711_FEEDER weight)
+  useEffect(() => {
+    const sensorsRef = ref(database, 'sensors_data');
+    const unsubscribe = onValue(sensorsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setSensorsData(data);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const getSensorValue = (sensorName: keyof SensorsData['sensors'], valueType: string): number | string => {
+    if (!sensorsData?.sensors || !sensorsData.sensors[sensorName]) return 'N/A';
+    const value = sensorsData.sensors[sensorName].values.find(v => v.type === valueType);
+    return value ? value.value : 'N/A';
+  };
+
+  const foodWeightKg = getSensorValue('HX711_FEEDER', 'weight');
+  const maxFeedGrams = typeof foodWeightKg === 'number' ? Math.max(0, Math.round(Math.abs(foodWeightKg * 1000))) : 0;
+
+  const handleSelectMax = () => {
+    const amount = String(maxFeedGrams);
+    setSelectedFeedType('custom');
+    setCustomAmount(amount);
+    setFoodAmount(amount);
+  };
 
   // Function to load feed history from API
   const loadFeedHistoryFromAPI = async () => {
@@ -435,7 +465,7 @@ const FeedControl = () => {
   const resetScheduleForm = () => {
     setScheduleForm({
       time: '',
-      presetId: 'small',
+      presetId: '',
       enabled: true
     });
   };
@@ -609,6 +639,14 @@ const FeedControl = () => {
                     {type.label} ({type.amount}g)
                   </Button>
                 ))}
+                <Button
+                  variant="bordered"
+                  color="warning"
+                  onClick={handleSelectMax}
+                  className="h-10 text-sm"
+                >
+                  Max ({maxFeedGrams}g)
+                </Button>
               </div>
 
               {selectedFeedType === 'custom' && (
@@ -810,6 +848,9 @@ const FeedControl = () => {
                     onChange={(e) => setScheduleForm({ ...scheduleForm, presetId: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-default-200 rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                   >
+                    <option value="" disabled>
+                      Please select feed preset
+                    </option>
                     {feedPresets.map((preset: any) => (
                       <option key={preset.id} value={preset.id}>
                         {preset.label}

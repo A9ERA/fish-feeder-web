@@ -7,7 +7,7 @@ import { useApiEndpoint } from '../contexts/ApiEndpointContext';
 
 const SensorControl = () => {
   const { pi_server_endpoint } = useApiEndpoint();
-  const [isRunning, setIsRunning] = useState(false);
+  const [, setIsRunning] = useState(false);
   const [interval, setInterval] = useState('1000');
   const [isLoading, setIsLoading] = useState(false);
   const [lastAction, setLastAction] = useState('');

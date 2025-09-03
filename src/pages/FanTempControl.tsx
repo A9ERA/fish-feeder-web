@@ -24,7 +24,7 @@ const FanTempControl = () => {
   const [originalThreshold, setOriginalThreshold] = useState(30); // To track changes
   const [autoFanMode, setAutoFanMode] = useState(true);
   const [fanStatus, setFanStatus] = useState(false);
-  const [sensorsData, setSensorsData] = useState<SensorsData | null>(null);
+  
   const [isSaving, setIsSaving] = useState(false);
   const [isManualFanLoading, setIsManualFanLoading] = useState(false);
 
@@ -50,7 +50,6 @@ const FanTempControl = () => {
     const unsubscribe = onValue(sensorsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setSensorsData(data);
         // Get system temperature from DHT22_SYSTEM
         const systemTemp = getSensorValue(data.sensors, 'DHT22_SYSTEM', 'temperature');
         setCurrentTemperature(systemTemp);

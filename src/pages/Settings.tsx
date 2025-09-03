@@ -5,6 +5,7 @@ import SensorControl from '../components/SensorControl';
 import WeightCalibration from '../components/WeightCalibration';
 import VersionInfo from '../components/VersionInfo';
 import { FaCog } from 'react-icons/fa';
+import AlertSettings from '../components/AlertSettings';
 
 const Settings = () => {
   return (
@@ -35,6 +36,11 @@ const Settings = () => {
           <SensorControl />
         </div>
         
+        <div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Alert Settings</h2>
+          <AlertSettings />
+        </div>
+
         <div>
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Weight Calibration</h2>
           <WeightCalibration />

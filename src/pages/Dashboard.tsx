@@ -36,6 +36,15 @@ const Dashboard = () => {
   const { pi_server_endpoint } = useApiEndpoint();
   const [sensorsData, setSensorsData] = useState<SensorsData | null>(null);
   const [isLedOn, setIsLedOn] = useState<boolean | null>(null);
+  const [alertLogs, setAlertLogs] = useState<Array<{
+    id: string;
+    sensorKey: string;
+    level: string;
+    value: number;
+    thresholds: { warning: number; critical: number };
+    timestamp: string;
+    action?: string;
+  }>>([]);
   
   // Date states for charts
   const today = new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
@@ -71,6 +80,18 @@ const Dashboard = () => {
       console.error('Error loading LED status from Firebase:', error);
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  // Listen alert logs (last 20 entries)
+  useEffect(() => {
+    const logsRef = ref(database, 'alerts/logs');
+    const unsubscribe = onValue(logsRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const list = Object.entries<any>(data).map(([id, item]) => ({ id, ...(item || {}) }));
+      list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setAlertLogs(list.slice(0, 20));
+    });
     return () => unsubscribe();
   }, []);
 
@@ -388,6 +409,30 @@ const Dashboard = () => {
                     <span className={`text-xs font-medium ${isLedOn ? 'text-green-500' : 'text-red-500'}`}>
                       {isLedOn === null ? 'N/A' : (isLedOn ? 'ON' : 'OFF')}
                     </span>
+                  </div>
+                </div>
+
+                {/* Alert Logs */}
+                <div className="mt-3">
+                  <div className="text-xs font-medium text-default-500 mb-1">Alert Logs</div>
+                  <div className="max-h-40 overflow-auto space-y-1">
+                    {alertLogs.length === 0 ? (
+                      <div className="text-xs text-default-400">No recent logs</div>
+                    ) : (
+                      alertLogs.map((log) => (
+                        <div key={log.id} className="text-xs flex items-center justify-between border border-divider rounded px-2 py-1">
+                          <div className="truncate mr-2">
+                            <span className="text-default-500">{log.sensorKey}</span>
+                            <span className="mx-1">•</span>
+                            <span className={log.level === 'critical' ? 'text-danger-500' : log.level === 'warning' ? 'text-warning-500' : 'text-success-500'}>{log.level}</span>
+                            <span className="mx-1">•</span>
+                            <span className="text-default-600">{log.value}%</span>
+                            {log.action ? <span className="ml-1 text-default-400">({log.action})</span> : null}
+                          </div>
+                          <div className="text-[10px] text-default-400 ml-2 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
