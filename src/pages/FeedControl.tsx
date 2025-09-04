@@ -156,6 +156,7 @@ const FeedControl = () => {
   // Device timing controls
   const [blowerDuration, setBlowerDuration] = useState('5');
   const [isFeeding, setIsFeeding] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   // Feed presets management
   const [feedPresets, setFeedPresets] = useState<any[]>([]);
@@ -489,6 +490,7 @@ const FeedControl = () => {
     if (selectedFeedType === 'custom') {
       setFoodAmount(value);
     }
+    setFeedError(null);
   };
 
   const handleFeedNow = async () => {
@@ -502,8 +504,17 @@ const FeedControl = () => {
     }
     
     if (!amount || parseFloat(amount) <= 0) {
+      setFeedError('Amount must be greater than 0g');
       return;
     }
+
+    // Validate against maximum available weight
+    const amountNum = parseFloat(amount);
+    if (maxFeedGrams > 0 && amountNum > maxFeedGrams) {
+      setFeedError(`Amount exceeds max available (${maxFeedGrams}g)`);
+      return;
+    }
+    setFeedError(null);
     
     setIsFeeding(true);
     
@@ -702,7 +713,8 @@ const FeedControl = () => {
                       const selectedPreset = currentPresets.find(type => type.id === selectedFeedType);
                       amount = selectedPreset ? selectedPreset.amount : '0';
                     }
-                    return isFeeding || !amount || amount === '0' || parseFloat(amount) <= 0;
+                    const amountNum = parseFloat(amount);
+                    return isFeeding || !amount || amount === '0' || amountNum <= 0 || (maxFeedGrams > 0 && amountNum > maxFeedGrams);
                   })()}
                 >
                   {isFeeding ? 'FEEDING...' : `FEED NOW (${(() => {
@@ -716,6 +728,10 @@ const FeedControl = () => {
                   })()}g)`}
                 </Button>
 
+                {feedError && (
+                  <div className="text-danger-500 text-xs mt-1">{feedError}</div>
+                )}
+
                 {isFeeding && (
                   <Button
                     color="danger"
@@ -728,10 +744,6 @@ const FeedControl = () => {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-default-500 bg-default-100 rounded-md p-2">
-                <BsGear className="text-sm" />
-                <span>feeder motor: weight-based open / 12s close (fixed), blower {blowerDuration}s</span>
-              </div>
             </div>
           </div>
         </div>

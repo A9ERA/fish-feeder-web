@@ -476,7 +476,7 @@ const Dashboard = () => {
                     <YAxis 
                       stroke="#9CA3AF"
                       fontSize={12}
-                      label={{ value: 'Power (W)', angle: -90, position: 'insideLeft' }}
+                      label={{ value: 'Solar (V)', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip 
                       contentStyle={{ 
@@ -485,7 +485,7 @@ const Dashboard = () => {
                         borderRadius: '8px',
                         color: '#F9FAFB'
                       }}
-                      formatter={(value, name) => [`${value}W`, name]}
+                      formatter={(value, name) => [`${value}V`, name]}
                     />
                     <Legend />
                     <Line 
@@ -495,14 +495,6 @@ const Dashboard = () => {
                       strokeWidth={3}
                       name="Solar Generation"
                       dot={{ fill: '#F59E0B', strokeWidth: 2, r: 4 }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="feederConsumption" 
-                      stroke="#3B82F6" 
-                      strokeWidth={3}
-                      name="Feeder Consumption"
-                      dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

@@ -6,6 +6,7 @@ import WeightCalibration from '../components/WeightCalibration';
 import VersionInfo from '../components/VersionInfo';
 import { FaCog } from 'react-icons/fa';
 import AlertSettings from '../components/AlertSettings';
+import FoodAlertSettings from '../components/FoodAlertSettings';
 
 const Settings = () => {
   return (
@@ -39,6 +40,11 @@ const Settings = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Alert Settings</h2>
           <AlertSettings />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Food Alert settings</h2>
+          <FoodAlertSettings />
         </div>
 
         <div>

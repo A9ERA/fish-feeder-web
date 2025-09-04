@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/config/firebase';
 import { Slider } from '@heroui/slider';
 import { Button } from '@heroui/button';
@@ -77,7 +77,11 @@ const AlertSettings = () => {
     setIsLoading(true);
     setSavedMsg('');
     try {
-      await set(ref(database, 'app_setting/alert'), settings);
+      // Partial update only specific keys to avoid overwriting other alert sections (e.g., food_weight)
+      await update(ref(database, 'app_setting/alert'), {
+        dht22_feeder_humidity: settings.dht22_feeder_humidity,
+        soil_moisture: settings.soil_moisture,
+      });
       setSavedMsg('บันทึกการตั้งค่าแล้ว');
     } catch (e) {
       setSavedMsg('บันทึกล้มเหลว');
