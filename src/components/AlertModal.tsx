@@ -27,6 +27,27 @@ const labelMap: Record<string, string> = {
   soil_moisture: 'ความชื้นเม็ดอาหาร (Soil Sensor)',
 };
 
+const getAlertDescription = (sensorKey: string, level: AlertLevel): string | null => {
+  if (level === 'normal') return null;
+
+  switch (sensorKey) {
+    case 'dht22_feeder_humidity':
+      if (level === 'warning') return 'ความชื้นอากาศสูงกว่าปกติ';
+      if (level === 'critical') return 'วิกฤตความชื้นอากาศ เปลี่ยน Silica gel';
+      return null;
+    case 'soil_moisture':
+      if (level === 'warning') return 'เม็ดอาหารเริ่มชื้น';
+      if (level === 'critical') return 'วิกฤตความชื้นเม็ดอาหาร';
+      return null;
+    case 'food_weight':
+      if (level === 'warning') return 'น้ำหนักอาหารต่ำกว่าปกติ';
+      if (level === 'critical') return 'วิกฤตน้ำหนักอาหาร';
+      return null;
+    default:
+      return null;
+  }
+};
+
 const AlertModal = () => {
   const [active, setActive] = useState<Record<string, ActiveAlert>>({});
   const [open, setOpen] = useState(false);
@@ -87,7 +108,12 @@ const AlertModal = () => {
                   <div className="text-sm font-medium">{labelMap[a.sensorKey] || a.sensorKey}</div>
                   <span className={`text-xs px-2 py-0.5 rounded border ${style.badge}`}>{a.level.toUpperCase()}</span>
                 </div>
-                <div className="text-xs text-default-500 mt-1">ค่าที่วัดได้: {a.value}% | Warning: {a.thresholds.warning}% | Critical: {a.thresholds.critical}%</div>
+                {/* <div className="text-xs text-default-500 mt-1">ค่าที่วัดได้: {a.value}% | Warning: {a.thresholds.warning}% | Critical: {a.thresholds.critical}%</div> */}
+                {getAlertDescription(a.sensorKey, a.level) && (
+                  <div className="text-xs text-default-700 mt-1">
+                    {getAlertDescription(a.sensorKey, a.level)}
+                  </div>
+                )}
                 {a.acknowledged ? (
                   <div className="text-xs text-default-500 mt-1">ผู้ใช้รับทราบแล้ว</div>
                 ) : (

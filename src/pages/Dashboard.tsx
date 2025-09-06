@@ -56,6 +56,11 @@ const Dashboard = () => {
   const [batteryData, setBatteryData] = useState<BatteryData[]>([]);
   const [isLoadingPowerFlow, setIsLoadingPowerFlow] = useState<boolean>(false);
   const [isLoadingBattery, setIsLoadingBattery] = useState<boolean>(false);
+  // Generic metric chart states
+  const [metricDate, setMetricDate] = useState<CalendarDate>(today);
+  const [selectedMetric, setSelectedMetric] = useState<string>('feederTemp');
+  const [metricData, setMetricData] = useState<Array<{ time: string; value: number }>>([]);
+  const [isLoadingMetric, setIsLoadingMetric] = useState<boolean>(false);
 
   useEffect(() => {
     const sensorsRef = ref(database, 'sensors_data');
@@ -201,6 +206,52 @@ const Dashboard = () => {
     fetchBatteryData(batteryDate);
   }, [batteryDate, pi_server_endpoint]);
 
+  // Function to fetch generic metric data from API
+  const fetchMetricData = async (date: CalendarDate, metricKey: string) => {
+    setIsLoadingMetric(true);
+    try {
+      const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+      const response = await fetch(`${pi_server_endpoint}/api/charts/metrics/${metricKey}/${dateStr}` as string, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      if (result.status === 'success') {
+        setMetricData(result.data);
+      } else {
+        console.error('Failed to fetch metric data:', result.message);
+        setMetricData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching metric data:', error);
+      setMetricData([]);
+    } finally {
+      setIsLoadingMetric(false);
+    }
+  };
+
+  // Fetch metric data when metric/date changes
+  useEffect(() => {
+    fetchMetricData(metricDate, selectedMetric);
+  }, [metricDate, selectedMetric, pi_server_endpoint]);
+
+  // Metric UI helpers
+  const metricDisplayMap: Record<string, { label: string; unit: string; color: string }> = {
+    feederTemp: { label: 'Feeder Temp', unit: '°C', color: '#3B82F6' },
+    foodWeight: { label: 'Food Weight', unit: 'kg', color: '#F59E0B' },
+    systemTemp: { label: 'System Temp', unit: '°C', color: '#06B6D4' },
+    systemHumi: { label: 'System Humi', unit: '%', color: '#8B5CF6' },
+    foodMoisture: { label: 'Food Moisture', unit: '%', color: '#10B981' },
+    systemVoltage: { label: 'System Voltage', unit: 'V', color: '#60A5FA' },
+    systemCurrent: { label: 'System Current', unit: 'A', color: '#60A5FA' },
+    battery: { label: 'Battery', unit: '%', color: '#10B981' },
+    solarVoltage: { label: 'Solar Voltage', unit: 'V', color: '#F59E0B' },
+    solarCurrent: { label: 'Solar Current', unit: 'A', color: '#F59E0B' },
+  };
 
 
   return (
@@ -574,6 +625,95 @@ const Dashboard = () => {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <p className="text-default-500 text-sm">No battery data available for selected date</p>
+                    <p className="text-default-400 text-xs mt-1">Try selecting a different date</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Selectable Metric Chart */}
+        <div className="col-span-12">
+          <div className="bg-content1 rounded-lg shadow-small p-5 border border-divider">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold flex items-center text-foreground">
+                <MdPower className="mr-2 text-blue-500" />
+                Metric Monitoring
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-default-500 mr-1">Metric</label>
+                <select
+                  className="bg-content2 text-foreground text-sm rounded px-2 py-1 border border-divider"
+                  value={selectedMetric}
+                  onChange={(e) => setSelectedMetric(e.target.value)}
+                >
+                  <option value="feederTemp">Feeder Temp</option>
+                  <option value="foodWeight">Food Weight</option>
+                  <option value="systemTemp">System Temp</option>
+                  <option value="systemHumi">System Humi</option>
+                  <option value="foodMoisture">Food Moisture</option>
+                  <option value="systemVoltage">System Voltage</option>
+                  <option value="systemCurrent">System Current</option>
+                  <option value="battery">Battery</option>
+                  <option value="solarVoltage">Solar Voltage</option>
+                  <option value="solarCurrent">Solar Current</option>
+                </select>
+                <DatePicker
+                  label="Select Date"
+                  value={metricDate}
+                  onChange={(date) => date && setMetricDate(date)}
+                  className="max-w-xs"
+                  size="sm"
+                />
+              </div>
+            </div>
+            <div className="h-80">
+              {isLoadingMetric ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                    <p className="text-default-500 text-sm">Loading metric data...</p>
+                  </div>
+                </div>
+              ) : metricData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metricData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#9CA3AF"
+                      fontSize={12}
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF"
+                      fontSize={12}
+                      label={{ value: `${metricDisplayMap[selectedMetric].label} (${metricDisplayMap[selectedMetric].unit})`, angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#F9FAFB'
+                      }}
+                      formatter={(value: any) => [`${value}${metricDisplayMap[selectedMetric].unit}`, metricDisplayMap[selectedMetric].label]}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke={metricDisplayMap[selectedMetric].color}
+                      strokeWidth={3}
+                      name={metricDisplayMap[selectedMetric].label}
+                      dot={{ fill: metricDisplayMap[selectedMetric].color, strokeWidth: 2, r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-default-500 text-sm">No data available for selected date</p>
                     <p className="text-default-400 text-xs mt-1">Try selecting a different date</p>
                   </div>
                 </div>

@@ -189,6 +189,15 @@ const FeedControl = () => {
 
   const [filteredFeedLogs, setFilteredFeedLogs] = useState<any[]>([]);
   
+  // Refill log data state
+  const [allRefillLogs, setAllRefillLogs] = useState<any[]>([]);
+  const [isLoadingRefillLogs, setIsLoadingRefillLogs] = useState(false);
+  const [filteredRefillLogs, setFilteredRefillLogs] = useState<any[]>([]);
+  const [refillFilterDateRange, setRefillFilterDateRange] = useState({
+    start: new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate() - 7),
+    end: new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
+  });
+  
   // Video modal state
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>('');
@@ -248,6 +257,19 @@ const FeedControl = () => {
                   amount: log.amount,
                   blowerDuration: log.blower_duration,
                   video_file: log.video_file || '',
+                  // New optional fields from backend
+                  feederHumi: (log.feeder_humi !== null && log.feeder_humi !== undefined && !isNaN(parseFloat(log.feeder_humi)))
+                    ? Number(parseFloat(log.feeder_humi).toFixed(1))
+                    : null,
+                  foodMoisture: (log.food_moisture !== null && log.food_moisture !== undefined && !isNaN(parseFloat(log.food_moisture)))
+                    ? Number(parseFloat(log.food_moisture).toFixed(1))
+                    : null,
+                  foodWeight: (log.food_weight_kg !== null && log.food_weight_kg !== undefined && !isNaN(parseFloat(log.food_weight_kg)))
+                    ? Number(parseFloat(log.food_weight_kg).toFixed(3))
+                    : null,
+                  batteryLevel: (log.battery_percentage !== null && log.battery_percentage !== undefined && !isNaN(parseFloat(log.battery_percentage)))
+                    ? Number(parseFloat(log.battery_percentage).toFixed(1))
+                    : null,
                   date: timestamp
                 };
               });
@@ -274,12 +296,66 @@ const FeedControl = () => {
     }
   };
 
+  // Function to load refill history from API
+  const loadRefillHistoryFromAPI = async () => {
+    setIsLoadingRefillLogs(true);
+    try {
+      const datesResponse = await fetch(`${pi_server_endpoint}/api/refill-history/available-dates`);
+      const datesData = await datesResponse.json();
+      if (datesData.status === 'success' && datesData.dates.length > 0) {
+        const allLogs: any[] = [];
+        for (const dateStr of datesData.dates) {
+          try {
+            const response = await fetch(`${pi_server_endpoint}/api/refill-history/${dateStr}`);
+            const data = await response.json();
+            if (data.status === 'success' && data.data) {
+              const transformedLogs = data.data.map((log: any, index: number) => {
+                const timestamp = new Date(log.timestamp);
+                return {
+                  id: `${dateStr}-${index}`,
+                  time: formatDate(timestamp),
+                  weightBefore: Number(parseFloat(log.weight_before_kg).toFixed(3)),
+                  weightAfter: Number(parseFloat(log.weight_after_kg).toFixed(3)),
+                  increase: Number(parseFloat(log.increase_kg).toFixed(3)),
+                  date: timestamp
+                };
+              });
+              allLogs.push(...transformedLogs);
+            }
+          } catch (error) {
+            console.error(`Error loading refill history for ${dateStr}:`, error);
+          }
+        }
+        allLogs.sort((a, b) => b.date.getTime() - a.date.getTime());
+        setAllRefillLogs(allLogs);
+      } else {
+        setAllRefillLogs([]);
+      }
+    } catch (error) {
+      console.error('Error loading refill history:', error);
+      setAllRefillLogs([]);
+    } finally {
+      setIsLoadingRefillLogs(false);
+    }
+  };
+
   // Table columns
   const columns = [
     { key: "time", label: "Time" },
     { key: "amount", label: "Amount (g)" },
     { key: "blowerDuration", label: "Blower (s)" },
+    { key: "feederHumi", label: "Feeder Humi (%)" },
+    { key: "foodMoisture", label: "Food Moisture (%)" },
+    { key: "foodWeight", label: "Food Weight (kg)" },
+    { key: "batteryLevel", label: "Battery (%)" },
     { key: "actions", label: "Actions" }
+  ];
+
+  const refillColumns = [
+    { key: "time", label: "Time" },
+    { key: "weightBefore", label: "Before (kg)" },
+    { key: "weightAfter", label: "After (kg)" },
+    { key: "increase", label: "Increase (kg)" }
   ];
 
   // Load presets and schedules from Firebase when component mounts
@@ -296,6 +372,8 @@ const FeedControl = () => {
         
         // Load feed history from API
         await loadFeedHistoryFromAPI();
+        // Load refill history from API
+        await loadRefillHistoryFromAPI();
       } catch (error) {
         console.error('Error loading initial data:', error);
         setFeedPresets(defaultFeedPresets);
@@ -344,6 +422,34 @@ const FeedControl = () => {
     // Sort filtered results by date (newest first)
     setFilteredFeedLogs(filtered.sort((a, b) => b.date.getTime() - a.date.getTime()));
   }, [filterDateRange, allFeedLogs]);
+
+  // Filter refill logs when date range changes or allRefillLogs updates
+  useEffect(() => {
+    if (!refillFilterDateRange.start && !refillFilterDateRange.end) {
+      setFilteredRefillLogs(allRefillLogs.sort((a, b) => b.date.getTime() - a.date.getTime()));
+      return;
+    }
+
+    const filtered = allRefillLogs.filter(log => {
+      const logDate = new Date(log.date.getFullYear(), log.date.getMonth(), log.date.getDate());
+
+      if (refillFilterDateRange.start && refillFilterDateRange.end) {
+        const start = toJSDate(refillFilterDateRange.start);
+        const end = toJSDate(refillFilterDateRange.end);
+        return logDate >= start && logDate <= end;
+      } else if (refillFilterDateRange.start) {
+        const start = toJSDate(refillFilterDateRange.start);
+        return logDate >= start;
+      } else if (refillFilterDateRange.end) {
+        const end = toJSDate(refillFilterDateRange.end);
+        return logDate <= end;
+      }
+      return true;
+    });
+
+    // Sort filtered results by date (newest first)
+    setFilteredRefillLogs(filtered.sort((a, b) => b.date.getTime() - a.date.getTime()));
+  }, [refillFilterDateRange, allRefillLogs]);
 
   // Get current feed presets including custom option
   const getCurrentPresets = () => {
@@ -601,6 +707,18 @@ const FeedControl = () => {
   const renderCellContent = (item: any, columnKey: React.Key) => {
     if (columnKey === 'date') {
       return formatDate(item.date);
+    }
+    if (columnKey === 'feederHumi') {
+      return item.feederHumi === null || item.feederHumi === undefined ? '—' : `${item.feederHumi}`;
+    }
+    if (columnKey === 'foodMoisture') {
+      return item.foodMoisture === null || item.foodMoisture === undefined ? '—' : `${item.foodMoisture}`;
+    }
+    if (columnKey === 'foodWeight') {
+      return item.foodWeight === null || item.foodWeight === undefined ? '—' : `${item.foodWeight}`;
+    }
+    if (columnKey === 'batteryLevel') {
+      return item.batteryLevel === null || item.batteryLevel === undefined ? '—' : `${item.batteryLevel}`;
     }
     if (columnKey === 'actions') {
       return (
@@ -1178,6 +1296,67 @@ const FeedControl = () => {
             loadingContent="Loading feed logs..."
           >
             {(item: { id: string; time: string; amount: number; augerDuration: number; blowerDuration: number; date: Date }) => (
+              <TableRow key={item.id}>
+                {(columnKey: React.Key) => (
+                  <TableCell>
+                    {renderCellContent(item, columnKey)}
+                  </TableCell>
+                )}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Refill Log Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Refill Log</h2>
+
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-3">
+            <DateRangePicker
+              className="max-w-xs"
+              label="Filter by date range"
+              value={refillFilterDateRange}
+              onChange={(value) => {
+                if (value) {
+                  setRefillFilterDateRange({ start: value.start, end: value.end });
+                }
+              }}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRefillFilterDateRange({
+                start: new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate() - 7),
+                end: new CalendarDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
+              })}
+              className="mb-0.5"
+            >
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <Table aria-label="Refill log table">
+          <TableHeader columns={refillColumns}>
+            {(column: { key: string; label: string }) => (
+              <TableColumn
+                key={column.key}
+                align={column.key === "time" ? "start" : "center"}
+              >
+                {column.label}
+              </TableColumn>
+            )}
+          </TableHeader>
+          <TableBody 
+            items={filteredRefillLogs} 
+            emptyContent={isLoadingRefillLogs ? "Loading refill logs..." : "No refill logs found for the selected date range"}
+            isLoading={isLoadingRefillLogs}
+            loadingContent="Loading refill logs..."
+          >
+            {(item: { id: string; time: string; weightBefore: number; weightAfter: number; increase: number; date: Date }) => (
               <TableRow key={item.id}>
                 {(columnKey: React.Key) => (
                   <TableCell>
