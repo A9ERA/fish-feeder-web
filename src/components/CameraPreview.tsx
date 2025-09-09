@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { ref, set } from 'firebase/database';
+import { database } from '../config/firebase';
 import { BsCamera, BsCameraVideo, BsCameraVideoOff } from 'react-icons/bs';
 import { useApiEndpoint } from '../contexts/ApiEndpointContext';
 
@@ -24,15 +26,67 @@ const CameraPreview = ({
   
   const videoUrl = `${pi_server_endpoint}/api/camera/video_feed`;
 
+  const isNightTime = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    return hour >= 18 || hour < 6;
+  };
+
+  const saveLedStatusToFirebase = async (status: boolean) => {
+    try {
+      const systemStatusRef = ref(database, 'system_status/led_status');
+      await set(systemStatusRef, status);
+    } catch (error) {
+      console.error('Error saving LED status to Firebase:', error);
+    }
+  };
+
   const handleImageError = () => {
     setIsImageLoaded(false);
     setImageError(true);
   };
 
   // Reset states when camera is disabled/enabled
-  const handleToggle = () => {
+  const handleToggle = async () => {
     setIsImageLoaded(false);
     setImageError(false);
+    try {
+      if (isEnabled === false) {
+        // Turning camera ON
+        if (isNightTime()) {
+          const response = await fetch(`${pi_server_endpoint}/api/control/relay`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              device: 'led',
+              action: 'on',
+            }),
+          });
+          if (response.ok) {
+            await saveLedStatusToFirebase(true);
+          }
+        }
+      } else if (isEnabled === true) {
+        // Turning camera OFF
+        const response = await fetch(`${pi_server_endpoint}/api/control/relay`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            device: 'led',
+            action: 'off',
+          }),
+        });
+        if (response.ok) {
+          await saveLedStatusToFirebase(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating LED with camera toggle:', error);
+    }
     onToggle?.();
   };
 
