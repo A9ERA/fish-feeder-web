@@ -7,6 +7,7 @@ import VersionInfo from '../components/VersionInfo';
 import { FaCog } from 'react-icons/fa';
 import AlertSettings from '../components/AlertSettings';
 import FoodAlertSettings from '../components/FoodAlertSettings';
+import FeederSettings from '../components/FeederSettings';
 
 const Settings = () => {
   return (
@@ -45,6 +46,11 @@ const Settings = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Food Alert settings</h2>
           <FoodAlertSettings />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Feeder settings</h2>
+          <FeederSettings />
         </div>
 
         <div>
