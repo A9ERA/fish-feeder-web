@@ -109,10 +109,10 @@ const Dashboard = () => {
     return value ? value.value : 'N/A';
   };
 
-  const formatValue = (value: number | string, unit: string): string => {
+  const formatValue = (value: number | string, unit: string, decimals: number = 1): string => {
     if (value === 'N/A') return 'N/A';
     if (typeof value === 'number') {
-      return `${value.toFixed(1)}${unit}`;
+      return `${value.toFixed(decimals)}${unit}`;
     }
     return `${value}${unit}`;
   };
@@ -343,7 +343,7 @@ const Dashboard = () => {
                 <span className="text-xs font-medium">Food Weight</span>
               </div>
               <div className="text-2xl font-bold text-foreground">
-                {formatValue(Math.abs(typeof foodWeight === 'number' ? foodWeight : 0), 'kg')}
+                {formatValue(Math.abs(typeof foodWeight === 'number' ? foodWeight : 0), 'kg', 3)}
               </div>
             </div>
           </div>
